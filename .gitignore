@@ -2,3 +2,6 @@
 *.csproj
 *.sln
 Library
+Temp
+OSG
+OSG.meta

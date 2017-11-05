@@ -44,7 +44,7 @@ Properties {
             unity_ObjectToWorld._13_23_33_43 = float4(0, 0, data.w, 0);
 			float4 pos = float4(data.xyz,1);
 			float x = _Time.y;
-			pos.y = pos.y / pow(log(x*x + 2.718281828459045),1.1) + abs(sin(x *10 + unity_InstanceID));
+			pos.y = (pos.y / pow(log(x*x + 2.718281828459045),1.1)) * 0.25 * abs(sin(x *10 + unity_InstanceID));
             unity_ObjectToWorld._14_24_34_44 = pos;
             unity_WorldToObject = unity_ObjectToWorld;
             unity_WorldToObject._14_24_34 *= -1;
