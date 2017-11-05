@@ -13,7 +13,7 @@ public class RandomizeJob : Job<Vector4>
     private float RandomValue
     {
         get {
-            return 0.1f + 0.9f * (float)r.NextDouble();
+            return 0.5f - (float)r.NextDouble();
         }
     }
 
