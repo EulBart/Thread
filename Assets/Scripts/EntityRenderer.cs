@@ -16,6 +16,8 @@ public class EntityRenderer : MonoBehaviour
     void Start() {
 
         argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
+        bounds.center = Vector3.zero;
+        bounds.extents = 10000*Vector3.one;
     }
 
     WaitForEndOfFrame endOfFrame;
@@ -25,7 +27,7 @@ public class EntityRenderer : MonoBehaviour
 
         for(;;)
         { 
-            bounds.center = transform.position;
+            
             Graphics.DrawMeshInstancedIndirect(instanceMesh, 
                 0, instanceMaterial, 
                 bounds, argsBuffer);

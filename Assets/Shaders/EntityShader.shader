@@ -9,20 +9,23 @@ Properties {
         LOD 200
 
         CGPROGRAM
-        // Physically based Standard lighting model
-        #pragma surface surf Standard addshadow fullforwardshadows
+        // Physically based Standard lighting model  removed : addshadow fullforwardshadows
+        #pragma surface surf Standard noshadow 
         #pragma multi_compile_instancing
         #pragma instancing_options procedural:setup
 
         sampler2D _MainTex;
+		uniform float4 _MainTex_TexelSize; 
 
         struct Input {
             float2 uv_MainTex;
+			float4 screenPos;
         };
 
     #ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
         StructuredBuffer<float4> positionBuffer;
     #endif
+	
 
         void rotate2D(inout float2 v, float r)
         {
@@ -54,14 +57,20 @@ Properties {
 
         half _Glossiness;
         half _Metallic;
-
+		
         void surf (Input IN, inout SurfaceOutputStandard o) {
 			
             fixed4 c = tex2D (_MainTex, IN.uv_MainTex);
-			clip(c.a - 0.1);
-            o.Albedo = c.rgb;
-            o.Metallic = _Metallic;
-            o.Smoothness = _Glossiness;
+			//clip(c.a - 0.1);
+			
+
+			//int xOdd = ((int)(IN.screenPos.x*_ScreenParams.x))&1;
+			//int yOdd = ((int)(IN.screenPos.y*_ScreenParams.y))&1;
+			//clip( (xOdd^yOdd) -0.1);
+
+            o.Albedo = float3(IN.screenPos.xy, 0);
+            o.Metallic = 0;// _Metallic;
+            o.Smoothness = 0;//_Glossiness;
         }
         ENDCG
     }
