@@ -7,7 +7,7 @@ Material:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_Name: Entity
-  m_Shader: {fileID: 4800000, guid: c99fff819b136c041bf9775e39ab7575, type: 3}
+  m_Shader: {fileID: 4800000, guid: fa64cae56dc381c44885c6fc9fc1dcce, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 1
