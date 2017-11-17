@@ -1,10 +1,7 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 using System.Diagnostics;
-using System.Threading;
-using JetBrains.Annotations;
-using UnityEditor;
+using TMPro;
 using Debug = UnityEngine.Debug;
 
 
@@ -13,6 +10,7 @@ public class EntitiesManager : MonoBehaviour
     [SerializeField] private int maxCount = 10;
     [SerializeField] private int threadCount = 1;
     [SerializeField] private float maxSize = 10;
+    [SerializeField] private TextMeshProUGUI text;
     private Container<Vector4> positions;
     private Container<Matrix4x4> matrices;
     private Bounds _bounds;
@@ -40,22 +38,42 @@ public class EntitiesManager : MonoBehaviour
         positions.Add(maxCount);
         matrices = new Container<Matrix4x4>(maxCount);
         matrices.Add(maxCount);
-        StartCoroutine(WaitForEndOfJob(new RandomizeJob(maxSize, positions)));
+        StartCoroutine(Run());
     }
-
-    private IEnumerator WaitForEndOfJob<T>(Job<T> job) where T : struct 
+    [Range(1,250)] public float wantedFPS = 30;
+    private IEnumerator Run()
+    {
+        yield return WaitForEndOfJob(new RandomizeJob(maxSize, positions));
+        EntityRenderer r = GetComponent<EntityRenderer>();
+        float timer = 0;
+        for(;;)
+        {
+            if(Input.GetMouseButton(1))
+                yield return WaitForEndOfJob(new SphereJob(maxSize, 0.01f, positions));
+            else
+            {
+                yield return null;
+            }
+            if(Input.GetMouseButton(0))
+                r.SetBuffer(this);
+        }
+    }
+ 
+    private IEnumerator WaitForEndOfJob<T>(Job<T> job, bool showTime=true) where T : struct 
     {
         Stopwatch watch = new Stopwatch();
         watch.Start();
         var result = job.Run(threadCount);
         yield return result;
         watch.Stop();
-        Debug.Log(result.result.Length + " " + typeof(T).Name + " computed in " + watch.ElapsedMilliseconds + " ms.");
-
-        EntityRenderer r = GetComponent<EntityRenderer>();
-        if(r)
+        if(showTime)
         {
-            r.SetBuffer(this);
+            if(text)
+                text.SetText(watch.ElapsedMilliseconds.ToString("0.0"));
+            else
+            {
+                Debug.Log(result.result.Length + " " + typeof(T).Name + " computed in " + watch.ElapsedMilliseconds + " ms.");    
+            }
         }
     }
 

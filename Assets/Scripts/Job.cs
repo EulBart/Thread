@@ -6,11 +6,6 @@ public abstract class Job<T> where T : struct
 {
     public delegate void ExecuteDelegate (ref T e);
 
-    private Job()
-    {
-        
-    }
-
     private Container<T> container;
 
     protected Job(Container<T> source)
@@ -23,7 +18,13 @@ public abstract class Job<T> where T : struct
 
     protected abstract ExecuteDelegate callback { get;}
 
-    protected void Execute(int threadCount)
+    public delegate void LogFunction(string s);
+
+    public LogFunction Log = s => {};
+
+
+
+    private void Execute(int threadCount)
     {
         lock (threadLock)
         {
@@ -31,14 +32,14 @@ public abstract class Job<T> where T : struct
             int end = container.Count;
             int batchCount = end/threadCount;
             threads = new Thread[threadCount];
-            Debug.Log("Starting " + threadCount + " threads");
+            Log("Starting " + threadCount + " threads");
             for(int startedThreads = 0; startedThreads < threadCount;++startedThreads)
             {
                 int last = current + batchCount;
                 if(last > end)
                     last = end;
                 int first = current;
-                Debug.Log("t"+startedThreads+ " will compute from " + first + " to " + last);
+                Log("t"+startedThreads+ " will compute from " + first + " to " + last);
                 threads[startedThreads] = new Thread(() => container.Execute(callback, first, last));
                 threads[startedThreads].Start();
                 current += batchCount;

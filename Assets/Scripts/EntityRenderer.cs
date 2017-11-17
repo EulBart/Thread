@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 
 
@@ -13,8 +12,8 @@ public class EntityRenderer : MonoBehaviour
     private uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
     private Bounds bounds;
 
-    void Start() {
-
+    void Start()
+    {
         argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
         bounds.center = Vector3.zero;
         bounds.extents = 10000*Vector3.one;
