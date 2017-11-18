@@ -1,4 +1,6 @@
-﻿    Shader "Instanced/InstancedShader" {
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+    Shader "Instanced/InstancedShader" {
     Properties {
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
     }
@@ -49,10 +51,10 @@
 
                 float3 localPosition = v.vertex.xyz;
                 float3 worldPosition = data.xyz + localPosition;
-                float3 worldNormal = v.normal;
+                //float3 worldNormal = v.normal;
 
                 v2f o;
-                o.pos = mul(UNITY_MATRIX_VP, float4(worldPosition, 1.0f));
+                o.pos = UnityObjectToClipPos(float4(worldPosition, 1.0f));
                 o.uv_MainTex = v.texcoord;
                 return o;
             }
@@ -74,11 +76,12 @@
             fixed4 frag (v2f i) : SV_Target
             {
                 fixed4 albedo = tex2D(_MainTex, i.uv_MainTex);
-				clip(albedo.w - 0.01);
+				//clip(albedo.w - 0.01);
               
 				//int oddx = ((int)i.pos.x)&1;
 				//int oddy = ((int)i.pos.y)&1;
 				//clip((oddy^oddx) -0.1);
+	
 
 				return albedo;//fixed4(i.pos.xy/_ScreenParams,0,1);
             }

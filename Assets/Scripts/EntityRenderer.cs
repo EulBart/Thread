@@ -1,10 +1,10 @@
 ﻿using System.Collections;
 using UnityEngine;
 
-
+[RequireComponent(typeof(MeshFilter))]
 public class EntityRenderer : MonoBehaviour
 {
-    public Mesh instanceMesh;
+    private Mesh instanceMesh;
     public Material instanceMaterial;
 
     private ComputeBuffer positionBuffer;
@@ -17,6 +17,7 @@ public class EntityRenderer : MonoBehaviour
         argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
         bounds.center = Vector3.zero;
         bounds.extents = 10000*Vector3.one;
+        instanceMesh = GetComponent<MeshFilter>().sharedMesh;
     }
 
     WaitForEndOfFrame endOfFrame;
@@ -25,8 +26,7 @@ public class EntityRenderer : MonoBehaviour
     {
 
         for(;;)
-        { 
-            
+        {
             Graphics.DrawMeshInstancedIndirect(instanceMesh, 
                 0, instanceMaterial, 
                 bounds, argsBuffer);

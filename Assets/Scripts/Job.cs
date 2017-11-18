@@ -20,7 +20,7 @@ public abstract class Job<T> where T : struct
 
     public delegate void LogFunction(string s);
 
-    public LogFunction Log = s => {};
+    public LogFunction Log = null;
 
 
 
@@ -32,14 +32,16 @@ public abstract class Job<T> where T : struct
             int end = container.Count;
             int batchCount = end/threadCount;
             threads = new Thread[threadCount];
-            Log("Starting " + threadCount + " threads");
+            if(Log != null)
+                Log("Starting " + threadCount + " threads");
             for(int startedThreads = 0; startedThreads < threadCount;++startedThreads)
             {
                 int last = current + batchCount;
                 if(last > end)
                     last = end;
                 int first = current;
-                Log("t"+startedThreads+ " will compute from " + first + " to " + last);
+                if(Log!=null)
+                    Log("t"+startedThreads+ " will compute from " + first + " to " + last);
                 threads[startedThreads] = new Thread(() => container.Execute(callback, first, last));
                 threads[startedThreads].Start();
                 current += batchCount;

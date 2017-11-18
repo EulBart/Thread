@@ -62,13 +62,16 @@ Properties {
 			
             fixed4 c = tex2D (_MainTex, IN.uv_MainTex);
 			//clip(c.a - 0.1);
-			
+						
+			#ifdef UNITY_PROCEDURAL_INSTANCING_ENABLED
+				c.gb = (float)(unity_InstanceID % 256) / 255.0f;
+			#endif
 
 			//int xOdd = ((int)(IN.screenPos.x*_ScreenParams.x))&1;
 			//int yOdd = ((int)(IN.screenPos.y*_ScreenParams.y))&1;
 			//clip( (xOdd^yOdd) -0.1);
 
-            o.Albedo = float3(IN.screenPos.xy, 0);
+            o.Albedo = c;
             o.Metallic = 0;// _Metallic;
             o.Smoothness = 0;//_Glossiness;
         }
