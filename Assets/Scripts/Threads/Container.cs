@@ -26,6 +26,11 @@
         }
     }
 
+    public Container(T[] sArray)
+    {
+        _array=sArray;
+    }
+
     public Container(Container<T> source) 
     {
         lock (_array = new T[source.Count])
@@ -106,7 +111,7 @@
     {
         for(int index = indexMin; index < indexMax;++index)
         {
-            action(ref _array[index]);
+            action(index, ref _array[index]);
         }
     }
 }

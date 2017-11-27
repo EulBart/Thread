@@ -10,7 +10,7 @@ public class SphereJob : Job<Vector4>
         this.f = f;
     }
 
-    private void PutOnSphere(ref Vector4 v)
+    private void PutOnSphere(int index, ref Vector4 v)
     {
         v = Vector4.Lerp(v, v.normalized * radius, f);
     }

@@ -17,7 +17,7 @@ public class RandomizeJob : Job<Vector4>
         }
     }
 
-    private void Randomize(ref Vector4 e)
+    private void Randomize(int index, ref Vector4 e)
     {
         e.Set(max * RandomValue, max * RandomValue, max * RandomValue, RandomValue);
     }

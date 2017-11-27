@@ -4,7 +4,7 @@ using UnityEngine;
 
 public abstract class Job<T> where T : struct 
 {
-    public delegate void ExecuteDelegate (ref T e);
+    public delegate void ExecuteDelegate (int index, ref T e);
 
     private Container<T> container;
 
@@ -42,8 +42,10 @@ public abstract class Job<T> where T : struct
                 int first = current;
                 if(Log!=null)
                     Log("t"+startedThreads+ " will compute from " + first + " to " + last);
-                threads[startedThreads] = new Thread(() => container.Execute(callback, first, last));
-                threads[startedThreads].Start();
+                Thread nT = new Thread(() => container.Execute(callback, first, last));
+
+                threads[startedThreads] = nT;
+                nT.Start();
                 current += batchCount;
             }
         }
@@ -88,9 +90,21 @@ public abstract class Job<T> where T : struct
         }
     }
 
-    public WaitYield Run(int threadCount)
+    public T[] RunSync(int threadCount)
+    {
+        Execute(threadCount);
+        foreach (Thread thread in threads)
+        {
+            thread.Join();
+        }
+        return container.Array;
+    }
+
+    public WaitYield RunAsync(int threadCount)
     {
         Execute(threadCount);
         return new WaitYield(this);
     }
+
+
 }

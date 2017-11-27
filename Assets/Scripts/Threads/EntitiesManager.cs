@@ -63,7 +63,7 @@ public class EntitiesManager : MonoBehaviour
     {
         Stopwatch watch = new Stopwatch();
         watch.Start();
-        var result = job.Run(threadCount);
+        var result = job.RunAsync(threadCount);
         yield return result;
         watch.Stop();
         if(showTime)

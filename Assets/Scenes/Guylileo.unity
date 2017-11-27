@@ -301,7 +301,7 @@ MonoBehaviour:
   m_MinValue: -180
   m_MaxValue: 180
   m_WholeNumbers: 1
-  m_Value: -79
+  m_Value: -82
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls:
@@ -397,7 +397,7 @@ MonoBehaviour:
   m_MinValue: -90
   m_MaxValue: 90
   m_WholeNumbers: 1
-  m_Value: 47
+  m_Value: 46
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls:
@@ -836,7 +836,7 @@ MonoBehaviour:
       m_Calls: []
     m_TypeName: UnityEngine.UI.MaskableGraphic+CullStateChangedEvent, UnityEngine.UI,
       Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
-  m_text: "4\xB058'11\""
+  m_text: "306\xB057'35\""
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 163292f6f226d954593d45b079f8aae0, type: 2}
   m_sharedMaterial: {fileID: 2140032, guid: 163292f6f226d954593d45b079f8aae0, type: 2}
@@ -903,7 +903,7 @@ MonoBehaviour:
   m_margin: {x: 2.2309341, y: 0, z: -48.81549, w: 0}
   m_textInfo:
     textComponent: {fileID: 345347832}
-    characterCount: 8
+    characterCount: 10
     spriteCount: 0
     spaceCount: 0
     wordCount: 2
@@ -916,7 +916,7 @@ MonoBehaviour:
   m_isVolumetricText: 0
   m_spriteAnimator: {fileID: 0}
   m_isInputParsingRequired: 0
-  m_inputSource: 0
+  m_inputSource: 3
   m_hasFontAssetChanged: 0
   m_subTextObjects:
   - {fileID: 0}
@@ -992,7 +992,7 @@ RectTransform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 558903994}
-  m_LocalRotation: {x: -0, y: -0, z: 0.043357834, w: 0.9990596}
+  m_LocalRotation: {x: -0, y: -0, z: 0.4465103, w: -0.8947785}
   m_LocalPosition: {x: 0, y: 0, z: -0.000053183354}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
@@ -1073,7 +1073,7 @@ MonoBehaviour:
       m_Calls: []
     m_TypeName: UnityEngine.UI.MaskableGraphic+CullStateChangedEvent, UnityEngine.UI,
       Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
-  m_text: "79\xB026'24\" W 46\xB042'0\" N"
+  m_text: "81\xB045'36\" W 45\xB035'59\" N"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 163292f6f226d954593d45b079f8aae0, type: 2}
   m_sharedMaterial: {fileID: 2140032, guid: 163292f6f226d954593d45b079f8aae0, type: 2}
@@ -1140,7 +1140,7 @@ MonoBehaviour:
   m_margin: {x: 2.2309341, y: 0, z: -147.03171, w: 0}
   m_textInfo:
     textComponent: {fileID: 664738574}
-    characterCount: 22
+    characterCount: 23
     spriteCount: 0
     spaceCount: 3
     wordCount: 6
@@ -1153,7 +1153,7 @@ MonoBehaviour:
   m_isVolumetricText: 0
   m_spriteAnimator: {fileID: 0}
   m_isInputParsingRequired: 0
-  m_inputSource: 0
+  m_inputSource: 3
   m_hasFontAssetChanged: 0
   m_subTextObjects:
   - {fileID: 0}
@@ -1182,7 +1182,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 0.5}
   m_AnchorMax: {x: 1, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -21.12}
+  m_AnchoredPosition: {x: 0, y: 30.78}
   m_SizeDelta: {x: 90.75, y: 63}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!222 &664738576
@@ -1543,7 +1543,7 @@ GameObject:
   - component: {fileID: 1095400722}
   - component: {fileID: 1095400721}
   m_Layer: 0
-  m_Name: Camera
+  m_Name: Observer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1555,8 +1555,8 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1095400719}
-  m_LocalRotation: {x: -0.36619422, y: -0.057925124, z: -0.04487824, w: 0.9276489}
-  m_LocalPosition: {x: 0.06376077, y: 0.36919913, z: -0.3420232}
+  m_LocalRotation: {x: -0.36528286, y: -0.40036693, z: 0.11039439, w: 0.83311933}
+  m_LocalPosition: {x: 0.05236395, y: 0.3730976, z: -0.36159232}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 1115202650}
@@ -1574,12 +1574,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8a6c901a2ff03a6428020d0153a1cc85, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  longitude: -79.44
-  latitude: 46.7
-  altitude: 7.3
+  longitude: -81.76
+  latitude: 45.6
+  altitude: 22.2
   cameraSpeed: 0.25
-  bearing: 4.97
-  elevation: 0
+  bearing: 306.96
+  elevation: 0.52
   compass: {fileID: 558903996}
   bearingText: {fileID: 345347832}
   positionText: {fileID: 664738574}
@@ -1659,7 +1659,7 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1115202649}
-  m_LocalRotation: {x: 0.125546, y: -0.57807916, z: -0.37758684, w: 0.71238405}
+  m_LocalRotation: {x: -0.02915461, y: -0.26177895, z: -0.4126776, w: 0.8719628}
   m_LocalPosition: {x: -0.229, y: 0.258, z: 0.572}
   m_LocalScale: {x: 0.01, y: 0.01, z: 0.01}
   m_Children: []
