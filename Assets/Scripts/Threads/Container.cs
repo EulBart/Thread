@@ -51,9 +51,11 @@
         }
     }
 
-    public Container(int capacity)
+    public Container(int capacity, bool full = false)
     {
         _array = new T[capacity];
+        if(full)
+            Count = capacity;
     }
 
     public void Add(T e)
@@ -91,25 +93,13 @@
 
     public T this[int i]
     {
-        get
-        {
-            lock (_array)
-            {
-                return _array[i];
-            }
-        }
-        set
-        {
-            lock (_array)
-            {
-                _array[i] = value;
-            }
-        }
+        get { lock (_array) { return _array[i]; }}
+        set { lock (_array) { _array[i] = value;}}
     }
 
     public void Execute(Job<T>.ExecuteDelegate action, int indexMin, int indexMax)
     {
-        for(int index = indexMin; index < indexMax;++index)
+        for(int index = indexMin; index < indexMax; ++index)
         {
             action(index, ref _array[index]);
         }

@@ -10,6 +10,15 @@ public struct PlanetMeshSettings
 
     private int sideVerticeCount;
     private Vector2 origin;
+    private int[] tToV  ;
+
+    public int TrianglesCount
+    {
+        get
+        {
+            return 8*count*count;
+        }
+    }
 
     public PlanetMeshSettings(Vector2 center, float delta, int count, float radius) : this()
     {
@@ -17,13 +26,21 @@ public struct PlanetMeshSettings
         this.delta = delta;
         this.count = count;
         this.radius = radius;
+        tToV = new int[6];
         Init();
     }
 
     public void Init()
     {
+        tToV = tToV??new int[6];
         sideVerticeCount = count * 2 + 1;
         origin = center - count * new Vector2(delta, delta);
+        tToV[0] = 1;
+        tToV[1] = 0;
+        tToV[2] = sideVerticeCount;
+        tToV[3] = sideVerticeCount+1;
+        tToV[4] = 1;
+        tToV[5] = sideVerticeCount;
     }
 
     public int SideVerticeCount
@@ -57,5 +74,10 @@ public struct PlanetMeshSettings
     public void IndexToNormal(int index, ref Vector3 normal)
     {
         CoordinatesToNormal(IndexToCoordinates(index), ref normal);
+    }
+
+    public int TriangleToVerticeIndex(int triangleIndex)
+    {
+        return triangleIndex / 6 + tToV[triangleIndex % 6];
     }
 }

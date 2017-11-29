@@ -19,6 +19,8 @@ public class Observer : MonoBehaviour
     [SerializeField] TextMeshProUGUI positionText;
     [SerializeField] Slider latitudeSlider;
     [SerializeField] Slider longitudeSlider;
+    [Header("MeshControl")]
+    [SerializeField] PlanetMesh mesh;
 
     Vector3 localLookAt;
     Vector3 lookAtPosition;
@@ -60,6 +62,7 @@ public class Observer : MonoBehaviour
                 longitudeSlider.value = longitude;
         }
         SetPos();
+
     }
 
     Vector3 downPosition;
@@ -163,6 +166,8 @@ public class Observer : MonoBehaviour
                                 AngleToString(Mathf.Abs(latitude)) +  (latitude>=0 ? " N" : " S");
         }
         transform.LookAt(lookAtPosition, parent.TransformDirection(up));
+        if(mesh)
+            mesh.BuildMesh(longitude, latitude);
     }
 
     private string AngleToString(float a)

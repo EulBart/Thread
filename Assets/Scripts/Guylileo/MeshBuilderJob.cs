@@ -68,4 +68,20 @@ public class MeshVerticesBuilderJob : MeshBuilderJob<Vector3>
     }
 }
 
+public class MeshTriangleBuilderJob : MeshBuilderJob<int>
+{
+    public MeshTriangleBuilderJob(Container<int> source, PlanetMeshSettings settings) : base(source, settings)
+    {
+        
+    }
 
+    protected override ExecuteDelegate callback
+    {
+        get{return GetVerticeIndex;}
+    }
+
+    private void GetVerticeIndex(int index, ref int e)
+    {
+        e = settings.TriangleToVerticeIndex(index);
+    }
+}

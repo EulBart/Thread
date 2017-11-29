@@ -20,28 +20,36 @@ public abstract class Job<T> where T : struct
 
     public delegate void LogFunction(string s);
 
-    public LogFunction Log = null;
-
-
+    /*
+    public readonly LogFunction Log = Debug.Log;
+    /*/
+    public readonly LogFunction Log = null;
+    //*/
 
     private void Execute(int threadCount)
     {
+        if(threadCount<0)
+            threadCount=1;
         lock (threadLock)
         {
             int current = 0;
             int end = container.Count;
-            int batchCount = end/threadCount;
+            if(end == 0)
+                return;
+            if(threadCount > end)
+                threadCount = end;
+            int batchCount = end / threadCount;
             threads = new Thread[threadCount];
-            if(Log != null)
-                Log("Starting " + threadCount + " threads");
-            for(int startedThreads = 0; startedThreads < threadCount;++startedThreads)
+            if (Log != null)
+                Log(GetType().Name + " Starting " + threadCount + " threads for " + end + " " + typeof(T).Name);
+            for (int startedThreads = 0; startedThreads < threadCount; ++startedThreads)
             {
                 int last = current + batchCount;
-                if(last > end)
+                if (last > end)
                     last = end;
                 int first = current;
-                if(Log!=null)
-                    Log("t"+startedThreads+ " will compute from " + first + " to " + last);
+                if (Log != null)
+                    Log("t" + startedThreads + " will compute from " + first + " to " + last);
                 Thread nT = new Thread(() => container.Execute(callback, first, last));
 
                 threads[startedThreads] = nT;
@@ -87,6 +95,14 @@ public abstract class Job<T> where T : struct
                 if (threads[index].IsAlive) return true;
             }
             return false;
+        }
+    }
+
+    public void Stop()
+    {
+        foreach (Thread thread in threads)
+        {
+            thread.Abort();
         }
     }
 

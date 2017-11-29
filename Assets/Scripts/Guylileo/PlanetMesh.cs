@@ -1,26 +1,69 @@
-﻿using System.Collections;
-using UnityEditor;
+﻿using System;
+using System.Collections;
 using UnityEngine;
+using OSG;
+
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 [RequireComponent(typeof(MeshRenderer))]
+[RequireComponent(typeof(MeshFilter))]
 public class PlanetMesh : MonoBehaviour
 {
     [SerializeField] private PlanetMeshSettings settings;
+    [SerializeField] private bool enableBuild;
+    [SerializeField] [Range(1,64)] private int threadCount=8;
 
     private Container<Vector3> vertices;
     private Container<int> triangles;
     private Container<Vector3> normals;
     private Container<Vector2> uvs;
-
-    MeshRenderer renderer;
-    void OnEnable()
+    
+    public bool IsBuilding
     {
-        renderer = GetComponent<MeshRenderer>();
-        
-
+        get;
+        private set;
     }
 
-    public void BuildMesh()
+    MeshFilter _meshFilter;
+    public MeshFilter meshFilter
+    {
+        get
+        {
+            if(!_meshFilter)
+            {
+                _meshFilter = GetComponent<MeshFilter>();
+            }
+            return _meshFilter;
+        }
+    }
+
+    void OnEnable()
+    {
+    }
+
+    public void BuildMesh(float degLongitude, float degLatitude)
+    {
+        if(IsBuilding || !enableBuild)
+            return;
+
+        Vector2 newCenter = new Vector2(degLongitude, degLatitude) * Mathf.Deg2Rad;
+        if(newCenter != settings.center)
+        {
+            settings.center = newCenter;
+            BuildMesh();
+        }
+    }
+
+    private void OnValidate()
+    {
+        if(IsBuilding || !enableBuild)
+            return;
+        BuildMesh();
+    }
+
+    private void BuildMesh()
     {
         settings.Init();
 #if UNITY_EDITOR
@@ -33,24 +76,50 @@ public class PlanetMesh : MonoBehaviour
     
     public void SyncBuildMesh()
     {
-        GetNormalJob().RunSync(8);
-        vertices = new Container<Vector3>(GetVertices().RunSync(8));
-        GetUVS().RunSync(8);
+        IsBuilding = true;
+        GetNormalJob().RunSync(threadCount);
+        vertices = new Container<Vector3>(GetVertices().RunSync(threadCount));
+        GetUVS().RunSync(threadCount);
+        GetTriangles().RunSync(threadCount);
+        AssignMesh();
+        IsBuilding = false;
     }
+
 
     private IEnumerator BuildMeshCoroutine()
     {
-        yield return GetNormalJob().RunAsync(8);
-
-        var result = GetVertices().RunAsync(8);
+        IsBuilding=true;
+        yield return GetNormalJob().RunAsync(threadCount);
+        var result = GetVertices().RunAsync(threadCount);
         yield return result;
         vertices = new Container<Vector3>(result.result);
-        yield return GetUVS().RunAsync(8);
+        yield return GetUVS().RunAsync(threadCount);
+        yield return GetTriangles().RunAsync(threadCount);
+        AssignMesh();
+        IsBuilding = false;
+    }
+
+    private void AssignMesh()
+    {
+        try
+        {
+            Mesh mesh = new Mesh();
+            mesh.vertices = vertices.Array;
+            mesh.normals = normals.Array;
+            mesh.uv = uvs.Array;
+            mesh.triangles = triangles.Array;
+            mesh.RecalculateBounds();
+            meshFilter.mesh = mesh;
+        }
+        catch(Exception e)
+        {
+            Debug.LogException(e);
+        }
     }
 
     private MeshUVBuilderJob GetUVS()
     {
-        uvs = new Container<Vector2>(settings.VerticeCount);
+        uvs = new Container<Vector2>(settings.VerticeCount,true);
         return new MeshUVBuilderJob(uvs, settings);
     }
 
@@ -63,8 +132,14 @@ public class PlanetMesh : MonoBehaviour
 
     private MeshNormalBuilderJob GetNormalJob()
     {
-        normals.readOnly = false;
-        normals = new Container<Vector3>(settings.VerticeCount);
+        normals = new Container<Vector3>(settings.VerticeCount, true);
         return new MeshNormalBuilderJob(normals, settings);
     }
+
+    private MeshTriangleBuilderJob GetTriangles()
+    {
+        triangles = new Container<int>(settings.TrianglesCount*3, true);
+        return new MeshTriangleBuilderJob(triangles, settings);
+    }
+
 }
