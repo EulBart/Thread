@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using OSG;
 using UnityEngine;
 
 public abstract class Job<T> where T : struct 
@@ -32,7 +33,7 @@ public abstract class Job<T> where T : struct
             threadCount=1;
         lock (threadLock)
         {
-            int current = 0;
+            int first = 0;
             int end = container.Count;
             if(end == 0)
                 return;
@@ -41,22 +42,24 @@ public abstract class Job<T> where T : struct
             int batchCount = end / threadCount;
             threads = new Thread[threadCount];
             if (Log != null)
-                Log(GetType().Name + " Starting " + threadCount + " threads for " + end + " " + typeof(T).Name);
-            for (int startedThreads = 0; startedThreads < threadCount; ++startedThreads)
+                Log(GetType().Name + " Starting " + threadCount + " threads for " + end + " " + typeof(T).Name.InColor(Color.yellow));
+            for (int startedThreads = 1; startedThreads < threadCount; ++startedThreads)
             {
-                int last = current + batchCount;
-                if (last > end)
-                    last = end;
-                int first = current;
-                if (Log != null)
-                    Log("t" + startedThreads + " will compute from " + first + " to " + last);
-                Thread nT = new Thread(() => container.Execute(callback, first, last));
-
-                threads[startedThreads] = nT;
-                nT.Start();
-                current += batchCount;
+                int last = first + batchCount;
+                threads[startedThreads] = Start(startedThreads, first, last);
+                first += batchCount;
             }
+            threads[0] = Start(0, first, end);
         }
+    }
+
+    private Thread Start(int startedThreads, int first, int last)
+    {
+        if (Log != null)
+            Log("t" + startedThreads + " will compute from [" + first + " to " + last + "[");
+        Thread nT = new Thread(() => container.Execute(callback, first, last));
+        nT.Start();
+        return nT;
     }
 
     public class WaitYield : CustomYieldInstruction

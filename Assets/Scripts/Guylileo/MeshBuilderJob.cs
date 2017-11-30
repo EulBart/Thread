@@ -9,9 +9,6 @@ public abstract class MeshBuilderJob<T> : Job<T> where T : struct
     {
         settings = s;
     }
-
-
-
 }
 
 

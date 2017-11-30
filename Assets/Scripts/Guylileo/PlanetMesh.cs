@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections;
+using System.Text;
 using UnityEngine;
 using OSG;
-
+using OSG.Debug;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -85,7 +86,6 @@ public class PlanetMesh : MonoBehaviour
         IsBuilding = false;
     }
 
-
     private IEnumerator BuildMeshCoroutine()
     {
         IsBuilding=true;
@@ -103,11 +103,13 @@ public class PlanetMesh : MonoBehaviour
     {
         try
         {
-            Mesh mesh = new Mesh();
-            mesh.vertices = vertices.Array;
-            mesh.normals = normals.Array;
-            mesh.uv = uvs.Array;
-            mesh.triangles = triangles.Array;
+            Mesh mesh = new Mesh
+            {
+                vertices = vertices.Array,
+                normals = normals.Array,
+                uv = uvs.Array,
+                triangles = triangles.Array
+            };
             mesh.RecalculateBounds();
             meshFilter.mesh = mesh;
         }

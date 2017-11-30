@@ -10,7 +10,8 @@ public struct PlanetMeshSettings
 
     private int sideVerticeCount;
     private Vector2 origin;
-    private int[] tToV  ;
+    private int[] tToV;
+    private int triangleIndicesPerRow;
 
     public int TrianglesCount
     {
@@ -35,6 +36,8 @@ public struct PlanetMeshSettings
         tToV = tToV??new int[6];
         sideVerticeCount = count * 2 + 1;
         origin = center - count * new Vector2(delta, delta);
+        triangleIndicesPerRow = 12 * count;
+
         tToV[0] = 1;
         tToV[1] = 0;
         tToV[2] = sideVerticeCount;
@@ -78,6 +81,9 @@ public struct PlanetMeshSettings
 
     public int TriangleToVerticeIndex(int triangleIndex)
     {
-        return triangleIndex / 6 + tToV[triangleIndex % 6];
+        int rowNumber = triangleIndex / triangleIndicesPerRow;
+        triangleIndex = triangleIndex % triangleIndicesPerRow;
+
+        return rowNumber * sideVerticeCount + triangleIndex / 6 + tToV[triangleIndex % 6];
     }
 }
