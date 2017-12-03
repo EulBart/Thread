@@ -35,9 +35,9 @@ public class EntitiesManager : MonoBehaviour
     {
         _bounds = new Bounds(Vector3.zero, maxSize * Vector3.one );
         positions = new Container<Vector4>(maxCount);
-        positions.Add(maxCount);
+        positions.Fill(maxCount);
         matrices = new Container<Matrix4x4>(maxCount);
-        matrices.Add(maxCount);
+        matrices.Fill(maxCount);
         StartCoroutine(Run());
     }
     [Range(1,250)] public float wantedFPS = 30;

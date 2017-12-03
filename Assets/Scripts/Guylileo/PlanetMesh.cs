@@ -1,55 +1,30 @@
 ﻿using System;
 using System.Collections;
-using System.Text;
 using UnityEngine;
-using OSG;
-using OSG.Debug;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 
-[RequireComponent(typeof(MeshRenderer))]
-[RequireComponent(typeof(MeshFilter))]
-public class PlanetMesh : MonoBehaviour
+public class PlanetMesh : MeshBuilder
 {
     [SerializeField] private PlanetMeshSettings settings;
     [SerializeField] private bool enableBuild;
     [SerializeField] [Range(1,64)] private int threadCount=8;
 
-    private Container<Vector3> vertices;
-    private Container<int> triangles;
-    private Container<Vector3> normals;
-    private Container<Vector2> uvs;
-    
-    public bool IsBuilding
+
+    private bool IsBuilding
     {
         get;
-        private set;
+        set;
     }
 
-    MeshFilter _meshFilter;
-    public MeshFilter meshFilter
-    {
-        get
-        {
-            if(!_meshFilter)
-            {
-                _meshFilter = GetComponent<MeshFilter>();
-            }
-            return _meshFilter;
-        }
-    }
 
-    void OnEnable()
-    {
-    }
-
-    public void BuildMesh(float degLongitude, float degLatitude)
+    public override void BuildMesh(Observer o)
     {
         if(IsBuilding || !enableBuild)
             return;
 
-        Vector2 newCenter = new Vector2(degLongitude, degLatitude) * Mathf.Deg2Rad;
+        Vector2 newCenter = o.GetCoordinates() * Mathf.Deg2Rad;
         if(newCenter != settings.center)
         {
             settings.center = newCenter;
@@ -74,8 +49,8 @@ public class PlanetMesh : MonoBehaviour
 #endif
             StartCoroutine(BuildMeshCoroutine());
     }
-    
-    public void SyncBuildMesh()
+
+    private void SyncBuildMesh()
     {
         IsBuilding = true;
         GetNormalJob().RunSync(threadCount);
@@ -99,25 +74,6 @@ public class PlanetMesh : MonoBehaviour
         IsBuilding = false;
     }
 
-    private void AssignMesh()
-    {
-        try
-        {
-            Mesh mesh = new Mesh
-            {
-                vertices = vertices.Array,
-                normals = normals.Array,
-                uv = uvs.Array,
-                triangles = triangles.Array
-            };
-            mesh.RecalculateBounds();
-            meshFilter.mesh = mesh;
-        }
-        catch(Exception e)
-        {
-            Debug.LogException(e);
-        }
-    }
 
     private MeshUVBuilderJob GetUVS()
     {

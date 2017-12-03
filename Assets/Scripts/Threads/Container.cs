@@ -1,4 +1,6 @@
-﻿public class Container<T> where T : struct 
+﻿using System;
+
+public class Container<T> where T : struct 
 {
     public bool readOnly;
     public int Capacity{get{return _array.Length;}}
@@ -58,15 +60,16 @@
             Count = capacity;
     }
 
-    public void Add(T e)
+    public int Add(T e)
     {
         lock (_array)
         {
-            _array[Count++] = e;
+            _array[_count] = e;
         }
+        return _count++;
     }
 
-    public void Add(int count)
+    public void Fill(int count)
     {
         Count+=count;
     }
@@ -102,6 +105,14 @@
         for(int index = indexMin; index < indexMax; ++index)
         {
             action(index, ref _array[index]);
+        }
+    }
+
+    internal void Add(params T[] n)
+    {
+        foreach (T t in n)
+        {
+            _array[_count++] = t;
         }
     }
 }

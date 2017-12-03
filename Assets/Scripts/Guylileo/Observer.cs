@@ -1,8 +1,7 @@
-﻿using TMPro;
-using UnityEditor;
+﻿using OSG.Debug;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-
 
 [ExecuteInEditMode]
 public class Observer : MonoBehaviour
@@ -20,17 +19,31 @@ public class Observer : MonoBehaviour
     [SerializeField] Slider latitudeSlider;
     [SerializeField] Slider longitudeSlider;
     [Header("MeshControl")]
-    [SerializeField] PlanetMesh mesh;
+    [SerializeField] MeshBuilder mesh;
 
     Vector3 localLookAt;
     Vector3 lookAtPosition;
     bool fromSlider;
 
+    Vector3 downPosition;
+    float downBearing;
+    float downElevation;
+    Camera _main;
+
+    public Camera main
+    {
+        get
+        {
+            if(!_main)
+                _main = GetComponent<Camera>();
+            return _main;
+        }
+    }
+
+
     void OnEnable()
     {
-        main = GetComponent<Camera>();
         SetPos();
-        main.nearClipPlane = main.farClipPlane/65536;
     }
 
     void OnValidate()
@@ -65,10 +78,6 @@ public class Observer : MonoBehaviour
 
     }
 
-    Vector3 downPosition;
-    float downBearing;
-    float downElevation;
-    Camera main;
 	void Update ()
 	{
 	    if(Input.GetMouseButtonDown(1))
@@ -80,7 +89,6 @@ public class Observer : MonoBehaviour
             if(oldFlags == CameraClearFlags.Nothing)
                 main.clearFlags = CameraClearFlags.SolidColor;
 	    }
-
 
         if(Input.GetMouseButton(1))
         {
@@ -101,31 +109,39 @@ public class Observer : MonoBehaviour
 
     private void OnDrawGizmosSelected()
     {
-        Handles.color = Color.white;
-        Handles.SphereHandleCap(0, lookAtPosition, Quaternion.identity, .025f, Event.current.type);
+        //Handles.color = Color.white;
+        //Handles.SphereHandleCap(0, lookAtPosition, Quaternion.identity, .025f, Event.current.type);
+
         DrawArrow(up, Color.yellow);
         DrawArrow(north, Color.yellow);
         DrawArrow(east, Color.yellow);
         DrawArrow(localLookAt, Color.red);
+
+        if(Application.isPlaying)
+        {
+            DebugUtils.ShowPositionInSceneEditor(transform.position);
+        }
     }
 
     private void DrawArrow(Vector3 localDirection, Color color)
     {
         Vector3 worldDirection = parent.TransformDirection(localDirection);
-        Quaternion q = new Quaternion();
-        q.SetLookRotation(worldDirection);
-        Handles.color = color;
-        Handles.ArrowHandleCap(0,transform.position, q, 0.1f, Event.current.type);
+        DebugUtils.DrawArrow(transform.position, worldDirection, color);
     }
 
 
     Vector3 up,north,east;
     Transform parent;
     private CameraClearFlags oldFlags;
-    
+    public Vector3 bearingDirection 
+    {
+        private set ;get;
+    }
 
     private void SetPos()
     {
+        float mainNearClipPlane = main.farClipPlane/65536;
+        main.nearClipPlane = mainNearClipPlane;
         parent = transform.parent;
         float d2r = Mathf.Deg2Rad;
         float l = d2r * latitude;
@@ -136,8 +152,7 @@ public class Observer : MonoBehaviour
         float cosL = Mathf.Cos(L);
         float sinL = Mathf.Sin(L);
         up = new Vector3(cosl * cosL, sinl, cosl * sinL);
-        
-        transform.localPosition = (0.5f+altitude/1000f) * up;
+        transform.localPosition = (1.0f + 2*mainNearClipPlane + altitude/1000f) * up;
         
         north = new Vector3(-cosL * sinl, cosl, -sinl * sinL);
         east = new Vector3(-sinL*cosl, 0,cosl*cosL);
@@ -149,7 +164,7 @@ public class Observer : MonoBehaviour
         float cosE = Mathf.Cos(eR);
         float sinE = Mathf.Sin(eR);
 
-        Vector3 bearingDirection =  cosB * north + sinB * east;
+        bearingDirection =  cosB * north + sinB * east;
         localLookAt = cosE * bearingDirection + sinE * up;
         lookAtPosition = transform.position + parent.TransformDirection(localLookAt);
         if(compass)
@@ -167,7 +182,7 @@ public class Observer : MonoBehaviour
         }
         transform.LookAt(lookAtPosition, parent.TransformDirection(up));
         if(mesh)
-            mesh.BuildMesh(longitude, latitude);
+            mesh.BuildMesh(this);
     }
 
     private string AngleToString(float a)
@@ -180,7 +195,6 @@ public class Observer : MonoBehaviour
         int sI = Mathf.FloorToInt(s);
         return aI+"°"+mI+"'" + sI + "\"";
     }
-
 
     public void SetLongitude(float f)
     {
@@ -203,5 +217,8 @@ public class Observer : MonoBehaviour
         OnValidate();
     }
 
-
+    public Vector2 GetCoordinates()
+    {
+        return new Vector2(longitude, latitude);
+    }
 }
