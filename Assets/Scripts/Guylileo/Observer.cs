@@ -1,4 +1,5 @@
-﻿using OSG.Debug;
+﻿using OSG;
+using OSG.Debug;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -116,6 +117,23 @@ public class Observer : MonoBehaviour
         DrawArrow(north, Color.yellow);
         DrawArrow(east, Color.yellow);
         DrawArrow(localLookAt, Color.red);
+
+        Vector3[] corners = new Vector3[4];
+        main.CalculateFrustumCorners(main.rect,
+                                     main.farClipPlane,
+                                     Camera.MonoOrStereoscopicEye.Mono, 
+                                     corners);
+        
+        Color[] colors =
+        {
+            Color.red, Color.green, Color.blue, Color.yellow
+        };
+
+        Vector3 position = transform.position;
+        for(int i = 0; i < 4; ++i)
+        {
+            Debug.DrawRay(position, transform.TransformVector(corners[i]), colors[i]);
+        }
 
         if(Application.isPlaying)
         {

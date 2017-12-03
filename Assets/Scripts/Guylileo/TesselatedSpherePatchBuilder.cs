@@ -37,53 +37,29 @@ public class TesselatedSpherePatchBuilder : MeshBuilder
         if(!parameters.Validate())
             return;
 
-       
-
         Camera camera = parameters.camera;
+        
 
-        Vector3 localPos = camera.transform.TransformPoint(transform.position);
-        if(localPos.z < 0)
+        Vector3[] corners = new Vector3[4];
+        camera.CalculateFrustumCorners(new Rect(0,0,1,1),
+            camera.farClipPlane,Camera.MonoOrStereoscopicEye.Mono, corners);
+
+        Vector3 position = camera.transform.position;
+        var direction = camera.transform.TransformVector(Vector3.Slerp(corners[0], corners[3],0.5f));
+        Vector3? intersect = position.RayIntersectSphere(direction, transform.position, parameters.radius);
+        if( !intersect.HasValue)
         {
-            meshRenderer.enabled=false;
+            meshRenderer.enabled = false;
             return;
         }
 
         meshRenderer.enabled = true;
 
-        Vector3[] corners = new Vector3[4];
-        camera.CalculateFrustumCorners(new Rect(0,0,1,1),
-            camera.farClipPlane,Camera.MonoOrStereoscopicEye.Mono, corners);
-        
-        Vector3?[] intersecs = new Vector3?[4];
-
-        Color[] colors =
-        {
-            Color.red, Color.green, Color.blue, Color.yellow
-        };
-
-        Vector3 position = camera.transform.position;
-        for(int i = 0; i < 4; ++i)
-        {
-            var direction = corners[i] - position;
-            DebugUtils.DrawArrow(position, direction, colors[i], 10);
-            //Vector3 direction, Vector3 sphereCenter, float sphereRadius)
-            intersecs[i] = position.RayIntersectSphere(direction, position, parameters.radius);
-            if(intersecs[i].HasValue)
-            {
-                DebugUtils.DrawStar(intersecs[i].Value, Color.white, 0.1f, 10);
-            }
-        }
-
-
-
         normals = new Container<Vector3>(parameters.pointsCount);
         triangles = new Container<int>(parameters.pointsCount);
-
-        Vector3 start = camera.transform.localPosition.normalized;
-            
-            //CoordinatesToNormal(parameters.startPosition * Mathf.Deg2Rad);
+        Vector3 start = transform.InverseTransformPoint(intersect.Value).normalized;// camera.transform.localPosition.normalized;
         float k = Mathf.Tan(parameters.openingAngle*Mathf.Deg2Rad);
-        Vector3 p = start + k * camera.transform.forward;
+        Vector3 p = start + k * camera.transform.right;
         p.Normalize();
         Quaternion q = Quaternion.AngleAxis(60, start);
 
@@ -92,6 +68,7 @@ public class TesselatedSpherePatchBuilder : MeshBuilder
             AddPoint(start);
             AddPoint(p);
             p = q * p;
+            p.Normalize(); // meh
             AddPoint(p);
         }
 
@@ -110,10 +87,10 @@ public class TesselatedSpherePatchBuilder : MeshBuilder
         AssignMesh();
     }
 
-    //private void OnDrawGizmos()
-    //{
-    //    Gizmos.DrawSphere(transform.position, parameters.radius);
-    //}
+    private void OnDrawGizmos()
+    {
+        Gizmos.DrawSphere(transform.position, parameters.radius);
+    }
 
     private void Run()
     {
