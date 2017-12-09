@@ -87,11 +87,6 @@ public class TesselatedSpherePatchBuilder : MeshBuilder
         AssignMesh();
     }
 
-    private void OnDrawGizmos()
-    {
-        Gizmos.DrawSphere(transform.position, parameters.radius);
-    }
-
     private void Run()
     {
         Subdivide(parameters.recursionCount);

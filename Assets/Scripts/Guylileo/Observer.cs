@@ -1,4 +1,5 @@
-﻿using OSG;
+﻿using NUnit.Framework;
+using OSG;
 using OSG.Debug;
 using TMPro;
 using UnityEngine;
@@ -107,7 +108,7 @@ public class Observer : MonoBehaviour
         //Camera.main.fieldOfView = 180 * Input.GetAxis("wheel");
 
 	}
-
+    /*
     private void OnDrawGizmosSelected()
     {
         //Handles.color = Color.white;
@@ -146,14 +147,32 @@ public class Observer : MonoBehaviour
         Vector3 worldDirection = parent.TransformDirection(localDirection);
         DebugUtils.DrawArrow(transform.position, worldDirection, color);
     }
-
-
-    Vector3 up,north,east;
+    */
+    public Vector3 up,north,east;
     Transform parent;
     private CameraClearFlags oldFlags;
     public Vector3 bearingDirection 
     {
         private set ;get;
+    }
+
+    public static Vector3 CoordinatesToNormal(float longitude, float latitude)
+    {
+        latitude *= Mathf.Deg2Rad;
+        longitude *= Mathf.Deg2Rad;
+        float cosl = Mathf.Cos(latitude);
+        float sinl = Mathf.Sin(latitude);
+        float cosL = Mathf.Cos(longitude);
+        float sinL = Mathf.Sin(longitude);
+        return new Vector3(cosl * cosL, sinl, cosl * sinL);
+    }
+    private const float r2d=Mathf.Rad2Deg;
+
+    public static Vector2 NormalToCoordinates(Vector3 n)
+    {
+        float latitude = Mathf.Atan2(n.y, Mathf.Sqrt(n.x*n.x+n.z*n.z)) * r2d;
+        float longitude = Mathf.Atan2(n.z, n.x) * r2d;
+        return new Vector2(longitude, latitude);
     }
 
     private void SetPos()
@@ -221,6 +240,14 @@ public class Observer : MonoBehaviour
         OnValidate();
     }
 
+    public void SetCoordinates(Vector2 c)
+    {
+        latitude = c.y;
+        longitude = c.x;
+        fromSlider = false;
+        OnValidate();
+    }
+
     public void SetLatitude(float f)
     {
         latitude = f;
@@ -239,4 +266,9 @@ public class Observer : MonoBehaviour
     {
         return new Vector2(longitude, latitude);
     }
+
+  
+
+
+
 }
