@@ -130,7 +130,7 @@ public class Observer : MonoBehaviour
         //DrawArrow(up, Color.yellow);
         //DrawArrow(north, Color.yellow);
         //DrawArrow(east, Color.yellow);
-        DrawArrow(localLookAt*2, Color.cyan);
+        //DrawArrow(localLookAt*2, Color.cyan);
 
         Vector3[] corners = new Vector3[4];
         main.CalculateFrustumCorners(main.rect,
@@ -175,7 +175,7 @@ public class Observer : MonoBehaviour
             Plane p = new Plane(p0, p2, p1);
             Handles.color = colors[i];
             
-            Handles.DrawPolyLine(p0, Vector3.Lerp(p1, p2, 0.05f), Vector3.Lerp(p2, p1, 0.05f), p0);
+            Handles.DrawPolyLine(p0, p1, p2, p0);
 
 
             inter = new PlaneSphereIntersection(p, center, meshRadius);
