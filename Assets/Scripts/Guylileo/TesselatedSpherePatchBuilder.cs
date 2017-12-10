@@ -1,11 +1,12 @@
 ﻿using System.Collections;
 using OSG;
-using OSG.Debug;
 using UnityEngine;
 
-public class TesselatedSpherePatchBuilder : MeshBuilder
+public class TesselatedSpherePatchBuilder : SphereMeshBuilder
 {
     [SerializeField] private SphereTesselationParameters parameters;
+
+
 
     private void OnValidate()
     {
@@ -47,7 +48,7 @@ public class TesselatedSpherePatchBuilder : MeshBuilder
         Vector3 position = camera.transform.position;
         var direction = camera.transform.TransformVector(Vector3.Slerp(corners[0], corners[3],0.5f));
         Vector3? intersect = position.RayIntersectSphere(direction, transform.position, parameters.radius);
-        if( !intersect.HasValue)
+        if(!parameters.whole && !intersect.HasValue)
         {
             meshRenderer.enabled = false;
             return;
@@ -57,9 +58,9 @@ public class TesselatedSpherePatchBuilder : MeshBuilder
 
         normals = new Container<Vector3>(parameters.pointsCount);
         triangles = new Container<int>(parameters.pointsCount);
-        Vector3 start = transform.InverseTransformPoint(intersect.Value).normalized;// camera.transform.localPosition.normalized;
+        Vector3 start = parameters.whole ? Vector3.forward : transform.InverseTransformPoint(intersect.Value).normalized;// camera.transform.localPosition.normalized;
         float k = Mathf.Tan(parameters.openingAngle*Mathf.Deg2Rad);
-        Vector3 p = start + k * camera.transform.right;
+        Vector3 p = parameters.whole ? Vector3.right : start + k * camera.transform.right;
         p.Normalize();
         Quaternion q = Quaternion.AngleAxis(60, start);
 
@@ -70,6 +71,19 @@ public class TesselatedSpherePatchBuilder : MeshBuilder
             p = q * p;
             p.Normalize(); // meh
             AddPoint(p);
+        }
+
+        if(parameters.whole)
+        {
+            p = Vector3.left;
+            for(int i = 0; i < 6; ++i)
+            {
+                AddPoint(p);
+                AddPoint(-start);
+                p = q * p;
+                p.Normalize(); // meh
+                AddPoint(p);
+            }
         }
 
         if(parameters.recursionCount > 0)
@@ -126,6 +140,11 @@ public class TesselatedSpherePatchBuilder : MeshBuilder
         AddPoint(nv0); triangles.Add(o1); AddPoint(nv1);
         AddPoint(nv2); AddPoint(nv1); triangles.Add(o2);
         AddPoint(nv0); AddPoint(nv1); AddPoint(nv2);
+    }
+
+    public override float radius
+    {
+        get { return parameters.radius; }
     }
 
     public override void BuildMesh(Observer o)

@@ -1,10 +1,8 @@
 using System;
 using UnityEngine;
-using UnityEditor;
-using UnityEngine.TestTools;
 using NUnit.Framework;
-using System.Collections;
 
+[Category("Observer")]
 public class ObserverTests {
 
     const double delta = 0.001;

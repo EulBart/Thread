@@ -5,12 +5,11 @@ using UnityEngine;
 using UnityEditor;
 #endif
 
-public class PlanetMesh : MeshBuilder
+public class PlanetMesh : SphereMeshBuilder
 {
     [SerializeField] private PlanetMeshSettings settings;
     [SerializeField] private bool enableBuild;
     [SerializeField] [Range(1,64)] private int threadCount=8;
-
 
     private bool IsBuilding
     {
@@ -18,6 +17,11 @@ public class PlanetMesh : MeshBuilder
         set;
     }
 
+
+    public override float radius
+    {
+        get { return settings.radius; }
+    }
 
     public override void BuildMesh(Observer o)
     {

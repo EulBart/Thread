@@ -1,9 +1,10 @@
-﻿using NUnit.Framework;
-using OSG;
+﻿using OSG;
 using OSG.Debug;
 using TMPro;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
+using Plane = OSG.Plane;
 
 [ExecuteInEditMode]
 public class Observer : MonoBehaviour
@@ -21,7 +22,8 @@ public class Observer : MonoBehaviour
     [SerializeField] Slider latitudeSlider;
     [SerializeField] Slider longitudeSlider;
     [Header("MeshControl")]
-    [SerializeField] MeshBuilder mesh;
+    [SerializeField] SphereMeshBuilder mesh;
+    public bool showHandles;
 
     Vector3 localLookAt;
     Vector3 lookAtPosition;
@@ -108,38 +110,57 @@ public class Observer : MonoBehaviour
         //Camera.main.fieldOfView = 180 * Input.GetAxis("wheel");
 
 	}
-    /*
-    private void OnDrawGizmosSelected()
+
+    Color[] colors =
+    {
+        Color.red, Color.green, Color.blue, Color.yellow
+    };
+    
+    private void OnDrawGizmos()
     {
         //Handles.color = Color.white;
         //Handles.SphereHandleCap(0, lookAtPosition, Quaternion.identity, .025f, Event.current.type);
 
-        DrawArrow(up, Color.yellow);
-        DrawArrow(north, Color.yellow);
-        DrawArrow(east, Color.yellow);
-        DrawArrow(localLookAt, Color.red);
+        //DrawArrow(up, Color.yellow);
+        //DrawArrow(north, Color.yellow);
+        //DrawArrow(east, Color.yellow);
+        DrawArrow(localLookAt*2, Color.cyan);
 
         Vector3[] corners = new Vector3[4];
         main.CalculateFrustumCorners(main.rect,
                                      main.farClipPlane,
                                      Camera.MonoOrStereoscopicEye.Mono, 
                                      corners);
-        
-        Color[] colors =
-        {
-            Color.red, Color.green, Color.blue, Color.yellow
-        };
+        Transform t = transform.parent;
+        Vector3 myPosition = transform.position;
+        Vector3 center = t.position;
 
-        Vector3 position = transform.position;
-        for(int i = 0; i < 4; ++i)
+        Plane backPlane = new Plane( normal: -transform.forward, point: center);
+        Handles.color = Color.Lerp(Color.yellow, Color.red, 0.25f);
+        backPlane.DrawGizmo(3);
+
+        float meshRadius = mesh.radius;
+        PlaneSphereIntersection inter = new PlaneSphereIntersection(backPlane, center, meshRadius);
+        Handles.color = inter.distance>0 ? Color.green : Color.red;
+        inter.DrawGizmo(0.01f);
+
+
+        for(int i = 0; i < 1; ++i)
         {
-            Debug.DrawRay(position, transform.TransformVector(corners[i]), colors[i]);
+            Vector3 p0 = myPosition;
+            Vector3 p1 = corners[i];
+            Vector3 p2 = corners.Modulo(i+1);
+
+            Plane p = new Plane(p0, p1, p2);
+            Handles.color = colors[i];
+            
+            Handles.DrawPolyLine(p0, p1, p2, p0);
+
+            inter = new PlaneSphereIntersection(p, center, meshRadius);
+            inter.DrawGizmo(0.01f);
         }
 
-        if(Application.isPlaying)
-        {
-            DebugUtils.ShowPositionInSceneEditor(transform.position);
-        }
+
     }
 
     private void DrawArrow(Vector3 localDirection, Color color)
@@ -147,7 +168,7 @@ public class Observer : MonoBehaviour
         Vector3 worldDirection = parent.TransformDirection(localDirection);
         DebugUtils.DrawArrow(transform.position, worldDirection, color);
     }
-    */
+    
     public Vector3 up,north,east;
     Transform parent;
     private CameraClearFlags oldFlags;
@@ -189,7 +210,7 @@ public class Observer : MonoBehaviour
         float cosL = Mathf.Cos(L);
         float sinL = Mathf.Sin(L);
         up = new Vector3(cosl * cosL, sinl, cosl * sinL);
-        transform.localPosition = (1.0f + 2*mainNearClipPlane + altitude/1000f) * up;
+        transform.localPosition = (mesh.radius + 2*mainNearClipPlane + altitude/1000f) * up;
         
         north = new Vector3(-cosL * sinl, cosl, -sinl * sinL);
         east = new Vector3(-sinL*cosl, 0,cosl*cosL);

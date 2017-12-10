@@ -7,6 +7,7 @@ public struct SphereTesselationParameters
     [SerializeField] [Range(0, 5)] public int recursionCount;
     [SerializeField] [Range(0, 90)] public float openingAngle;
     [SerializeField] public float radius;
+    [SerializeField] public bool whole;
 
     [HideInInspector] public int triangleCount;
     [HideInInspector] public int pointsCount;
@@ -24,6 +25,13 @@ public struct SphereTesselationParameters
         triangleCount = 6 * (1<<(2*recursionCount)); // 6 * 4 ^ recursionCount
 
         pointsCount = 3 * triangleCount;
+
+        if(whole)
+        {
+            pointsCount *= 2;
+            triangleCount *= 2;
+        }
+
         return camera;
     }
 

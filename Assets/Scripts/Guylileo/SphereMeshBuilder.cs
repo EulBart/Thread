@@ -3,7 +3,7 @@ using UnityEngine;
 
 [RequireComponent(typeof(MeshRenderer))]
 [RequireComponent(typeof(MeshFilter))]
-public abstract class MeshBuilder : MonoBehaviour
+public abstract class SphereMeshBuilder : MonoBehaviour
 {
     
     protected Container<Vector3> vertices;
@@ -14,6 +14,12 @@ public abstract class MeshBuilder : MonoBehaviour
     private MeshFilter _meshFilter;
 
     private MeshRenderer _mR;
+
+    public abstract float radius
+    {
+        get;
+    }
+
     protected MeshRenderer meshRenderer
     {
         get
@@ -23,9 +29,6 @@ public abstract class MeshBuilder : MonoBehaviour
             return _mR;
         }
     }
-
-
-
 
     protected MeshFilter meshFilter
     {
