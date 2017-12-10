@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 using Plane = OSG.Plane;
+using UnityEngine.Rendering;
 
 [ExecuteInEditMode]
 public class Observer : MonoBehaviour
@@ -115,6 +116,11 @@ public class Observer : MonoBehaviour
     {
         Color.red, Color.green, Color.blue, Color.yellow
     };
+
+    public bool useForwardForBackPlane;
+
+    public bool showBackPlane;
+    public bool[] showPlane = new bool[4];
     
     private void OnDrawGizmos()
     {
@@ -131,33 +137,53 @@ public class Observer : MonoBehaviour
                                      main.farClipPlane,
                                      Camera.MonoOrStereoscopicEye.Mono, 
                                      corners);
+
+        for (var index = 0; index < corners.Length; index++)
+        {
+            corners[index] = transform.TransformPoint(corners[index]);
+        }
+
         Transform t = transform.parent;
         Vector3 myPosition = transform.position;
         Vector3 center = t.position;
 
-        Plane backPlane = new Plane( normal: -transform.forward, point: center);
-        Handles.color = Color.Lerp(Color.yellow, Color.red, 0.25f);
-        backPlane.DrawGizmo(3);
 
+        PlaneSphereIntersection inter;
         float meshRadius = mesh.radius;
-        PlaneSphereIntersection inter = new PlaneSphereIntersection(backPlane, center, meshRadius);
-        Handles.color = inter.distance>0 ? Color.green : Color.red;
-        inter.DrawGizmo(0.01f);
-
-
-        for(int i = 0; i < 1; ++i)
+        Handles.zTest = CompareFunction.LessEqual;
+        if(showBackPlane)
         {
+            Vector3 planeNormal = useForwardForBackPlane ? -transform.forward : myPosition - center;
+
+            Plane backPlane = new Plane(normal: planeNormal, point: center);
+            Handles.color = Color.Lerp(Color.yellow, Color.red, 0.25f);
+            backPlane.DrawGizmo(3);
+            inter = new PlaneSphereIntersection(backPlane, center, meshRadius);
+            inter.DrawGizmo(0.01f);
+        }
+
+
+        for (int i = 0; i < 4; ++i)
+        {
+            if(!showPlane[i])
+                continue;
+
             Vector3 p0 = myPosition;
             Vector3 p1 = corners[i];
             Vector3 p2 = corners.Modulo(i+1);
 
-            Plane p = new Plane(p0, p1, p2);
+            Plane p = new Plane(p0, p2, p1);
             Handles.color = colors[i];
             
-            Handles.DrawPolyLine(p0, p1, p2, p0);
+            Handles.DrawPolyLine(p0, Vector3.Lerp(p1, p2, 0.05f), Vector3.Lerp(p2, p1, 0.05f), p0);
+
 
             inter = new PlaneSphereIntersection(p, center, meshRadius);
-            inter.DrawGizmo(0.01f);
+            inter.DrawGizmo(0.0125f);
+            //Quaternion q=new Quaternion();
+            //q.SetLookRotation(p.normal);
+            //Handles.zTest = CompareFunction.Always;
+            //Handles.ArrowHandleCap(0, inter.onPlane, q, 1f, Event.current.type);
         }
 
 
