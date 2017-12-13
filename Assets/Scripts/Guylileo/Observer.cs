@@ -148,7 +148,7 @@ public class Observer : MonoBehaviour
         Vector3 center = t.position;
 
 
-        PlaneSphereIntersection inter;
+        PlaneSphereIntersection planeInter;
         float meshRadius = mesh.radius;
         Handles.zTest = CompareFunction.LessEqual;
         if(showBackPlane)
@@ -158,8 +158,8 @@ public class Observer : MonoBehaviour
             Plane backPlane = new Plane(normal: planeNormal, point: center);
             Handles.color = Color.Lerp(Color.yellow, Color.red, 0.25f);
             backPlane.DrawGizmo(3);
-            inter = new PlaneSphereIntersection(backPlane, center, meshRadius);
-            inter.DrawGizmo(0.01f);
+            planeInter = new PlaneSphereIntersection(backPlane, center, meshRadius);
+            planeInter.DrawGizmo(0.01f);
         }
 
 
@@ -178,8 +178,13 @@ public class Observer : MonoBehaviour
             Handles.DrawPolyLine(p0, p1, p2, p0);
 
 
-            inter = new PlaneSphereIntersection(p, center, meshRadius);
-            inter.DrawGizmo(0.0125f);
+            planeInter = new PlaneSphereIntersection(p, center, meshRadius);
+            const float gizmoSize = 0.0125f;
+            planeInter.DrawGizmo(gizmoSize);
+
+            RaySphereIntersection rayInter = new RaySphereIntersection(myPosition, p1-myPosition, center, meshRadius);
+            rayInter.DrawGizmo(gizmoSize, "P"+(i+1));
+
             //Quaternion q=new Quaternion();
             //q.SetLookRotation(p.normal);
             //Handles.zTest = CompareFunction.Always;
