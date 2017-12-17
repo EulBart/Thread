@@ -1,5 +1,8 @@
-﻿using UnityEditor;
+﻿
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 [ExecuteInEditMode]
 public class PointAt : MonoBehaviour
@@ -10,10 +13,12 @@ public class PointAt : MonoBehaviour
     {
         transform.LookAt(target.position);
     }
-
+#if UNITY_EDITOR
     void OnDrawGizmos()
     {
+
         Handles.ArrowHandleCap(0, transform.position, transform.rotation, size, Event.current.type);
     }
+#endif
 
 }

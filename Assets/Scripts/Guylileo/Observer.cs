@@ -1,7 +1,9 @@
 ﻿using OSG;
 using OSG.Debug;
 using TMPro;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using UnityEngine;
 using UnityEngine.UI;
 using Plane = OSG.Plane;
@@ -121,7 +123,7 @@ public class Observer : MonoBehaviour
 
     public bool showBackPlane;
     public bool[] showPlane = new bool[4];
-    
+#if UNITY_EDITOR
     private void OnDrawGizmos()
     {
         //Handles.color = Color.white;
@@ -193,7 +195,7 @@ public class Observer : MonoBehaviour
 
 
     }
-
+#endif
     private void DrawArrow(Vector3 localDirection, Color color)
     {
         Vector3 worldDirection = parent.TransformDirection(localDirection);
