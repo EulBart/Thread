@@ -18,6 +18,8 @@ public class Observer : MonoBehaviour
     [SerializeField] float cameraSpeed = 0.25f;
     [SerializeField] float bearing = 0;
     [SerializeField] float elevation;
+    [SerializeField] float yaw;
+    [SerializeField] float roll;
     [Header("UI")]
     [SerializeField] Image compass;
     [SerializeField] TextMeshProUGUI bearingText;
@@ -72,7 +74,7 @@ public class Observer : MonoBehaviour
             bearing -= 360;
         }
         latitude = Mathf.Clamp(latitude,-89.9f, 89.9f);
-        elevation = Mathf.Clamp(elevation, -90, 90);
+        elevation = Mathf.Clamp(elevation, -180, 180);
 
         if(!fromSlider)
         {
@@ -119,83 +121,27 @@ public class Observer : MonoBehaviour
         Color.red, Color.green, Color.blue, Color.yellow
     };
 
-    public bool useForwardForBackPlane;
 
     public bool showBackPlane;
     public bool[] showPlane = new bool[4];
+
 #if UNITY_EDITOR
+    private FrustumSphereIntersection fsi;
     private void OnDrawGizmos()
     {
-        //Handles.color = Color.white;
-        //Handles.SphereHandleCap(0, lookAtPosition, Quaternion.identity, .025f, Event.current.type);
-
-        //DrawArrow(up, Color.yellow);
-        //DrawArrow(north, Color.yellow);
-        //DrawArrow(east, Color.yellow);
-        //DrawArrow(localLookAt*2, Color.cyan);
-
-        Vector3[] corners = new Vector3[4];
-        main.CalculateFrustumCorners(main.rect,
-                                     main.farClipPlane,
-                                     Camera.MonoOrStereoscopicEye.Mono, 
-                                     corners);
-
-        for (var index = 0; index < corners.Length; index++)
+        Vector3 parentPosition = transform.parent.position;
+        if(fsi==null)
         {
-            corners[index] = transform.TransformPoint(corners[index]);
+            fsi = new FrustumSphereIntersection(main, parentPosition, mesh.radius);
         }
-
-        Transform t = transform.parent;
-        Vector3 myPosition = transform.position;
-        Vector3 center = t.position;
-
-
-        PlaneSphereIntersection planeInter;
-        float meshRadius = mesh.radius;
-        Handles.zTest = CompareFunction.LessEqual;
-        if(showBackPlane)
+        else
         {
-            Vector3 planeNormal = useForwardForBackPlane ? -transform.forward : myPosition - center;
-
-            Plane backPlane = new Plane(normal: planeNormal, point: center);
-            Handles.color = Color.Lerp(Color.yellow, Color.red, 0.25f);
-            backPlane.DrawGizmo(3);
-            planeInter = new PlaneSphereIntersection(backPlane, center, meshRadius);
-            planeInter.DrawGizmo(0.01f);
+            fsi.SetSphere(parentPosition, mesh.radius);
         }
-
-
-        for (int i = 0; i < 4; ++i)
-        {
-            if(!showPlane[i])
-                continue;
-
-            Vector3 p0 = myPosition;
-            Vector3 p1 = corners[i];
-            Vector3 p2 = corners.Modulo(i+1);
-
-            Plane p = new Plane(p0, p2, p1);
-            Handles.color = colors[i];
-            
-            Handles.DrawPolyLine(p0, p1, p2, p0);
-
-
-            planeInter = new PlaneSphereIntersection(p, center, meshRadius);
-            const float gizmoSize = 0.0125f;
-            planeInter.DrawGizmo(gizmoSize);
-
-            RaySphereIntersection rayInter = new RaySphereIntersection(myPosition, p1-myPosition, center, meshRadius);
-            rayInter.DrawGizmo(gizmoSize, "P"+(i+1));
-
-            //Quaternion q=new Quaternion();
-            //q.SetLookRotation(p.normal);
-            //Handles.zTest = CompareFunction.Always;
-            //Handles.ArrowHandleCap(0, inter.onPlane, q, 1f, Event.current.type);
-        }
-
-
+        fsi.DrawGizmos();
     }
 #endif
+
     private void DrawArrow(Vector3 localDirection, Color color)
     {
         Vector3 worldDirection = parent.TransformDirection(localDirection);
@@ -271,7 +217,11 @@ public class Observer : MonoBehaviour
             positionText.text = AngleToString(Mathf.Abs(longitude)) +  (longitude>=0 ? " E " : " W ") +
                                 AngleToString(Mathf.Abs(latitude)) +  (latitude>=0 ? " N" : " S");
         }
+
+        Quaternion yawRollQ = new Quaternion {eulerAngles = new Vector3(0, yaw, roll)};
+        
         transform.LookAt(lookAtPosition, parent.TransformDirection(up));
+        transform.rotation = transform.rotation * yawRollQ ;
         if(mesh)
             mesh.BuildMesh(this);
     }
