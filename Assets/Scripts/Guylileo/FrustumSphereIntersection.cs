@@ -14,7 +14,7 @@ public class FrustumSphereIntersection
 {
     private static Color[] colors =
     {
-        Color.red, Color.green, Color.blue, Color.yellow
+        Color.red, Color.green, Color.cyan, Color.yellow
     };
 
     public readonly Vector3[] corners = new Vector3[5];
@@ -99,74 +99,147 @@ public class FrustumSphereIntersection
         }
 
         seedInter = new RaySphereIntersection(camPosition, seed-camPosition, center, radius);
+        v0 = v0 ?? new List<Vector3>();
+        v0.Clear();
+
         if(seedInter.type != RaySphereIntersection.eType.InFront)
         {
             return;
         }
 
-        v0 = v0 ?? new List<Vector3>();
-        v0.Clear();
-        Q0(v0);
+        GetQuadrantPoints(v0, 0, 3);
+        GetQuadrantPoints(v0, 1, 0);
+        GetQuadrantPoints(v0, 2, 1);
+        GetQuadrantPoints(v0, 3, 2);
     }
 
     private List<Vector3> v0;
 
 
-    // Get the list for generating vertices in quadrant 0
-    private void Q0(List<Vector3> result)
+    // Get the list for generating vertices in quadrant defined
+    // by the two side planes of indices index0 and index1
+    private void GetQuadrantPoints(List<Vector3> result, int index0, int index1)
     {
-        
-        //int index0 = 0;
-        //int index1 = 3;
-        //if(moved[index0] || moved[index1])
-        //    return;
+        if(moved[index0] || moved[index1])
+            return;
 
         result.Add(seedInter.I);
 
-        // Get a point downwards
+        bool cornerIntersects = cornersInter[index0].type != RaySphereIntersection.eType.None;
 
-        for(int i = 0; i < 4;++i)
+        Vector3 p0 = GetSidePoint(index0, index1);
+        result.Add(p0);
+        if(!cornerIntersects)
         {
-            if(moved[i])
-                continue;
-            Vector3 p = GetPointCLosestToPlane(i);
-            result.Add(p);
+            AddPossibleExtraPoint(result, index0, index1);
         }
-
-/*
-        var ppI = new PlanePlaneIntersection(sidePlanes[planeIndex], backPlane);
-        var lsI = new LineSphereIntersection(ppI.O, ppI.D, center, radius);
-
-        if (lsI.type != LineSphereIntersection.eType.None)
+        else
         {
-            result.Add(lsI.I0);
-            if (lsI.type == LineSphereIntersection.eType.TwoPoints)
-            {
-                result.Add(lsI.I1);
-            }
+            result.Add(cornersInter[index0].I);
         }
-
-        break;
-        */
-
+        if(!cornerIntersects)
+        {
+            AddPossibleExtraPoint(result, index1, index0);
+        }
+        Vector3 p1 = GetSidePoint(index1, index0);
+        result.Add(p1);
     }
 
-    private Vector3 GetPointCLosestToPlane(int planeIndex)
+    private void AddPossibleExtraPoint(List<Vector3> result, int index0, int index1)
+    {
+        if (planeInter[index0].type != PlaneSphereIntersection.eType.None)
+        {
+            // the plane intersects with the sphere, we have to add another
+            // construction point on the intersection of this plane
+            // and the backPlane (on the sphere too, obviously)
+            var ppI = new PlanePlaneIntersection(sidePlanes[index0], backPlane);
+            var lsI = new LineSphereIntersection(ppI.O, ppI.D, center, radius);
+
+            if (lsI.type != LineSphereIntersection.eType.None)
+            {
+                if (lsI.type == LineSphereIntersection.eType.OnePoint)
+                {
+                    result.Add(lsI.I0);
+                }
+                else
+                {
+                    float d0 = sidePlanes[index1].Distance(lsI.I0);
+                    float d1 = sidePlanes[index1].Distance(lsI.I1);
+                    // returns the point closest to the other plane
+                    result.Add(d0 < d1 ? lsI.I0 : lsI.I1);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Get the side point for the main plane (index0) given the other plane of the quadrant
+    /// we're building
+    /// </summary>
+    /// <param name="index0"></param>
+    /// <param name="index1"></param>
+    /// <returns></returns>
+    private Vector3 GetSidePoint(int index0, int index1)
+    {
+        Vector3 p0 = GetPointClosestToPlane(index0);
+        if (sidePlanes[index1].Distance(p0) > 0)
+        {
+            // the other plane doesn't exclude it from view, so this is it.
+            return p0;
+        }
+        // we now have to find the corresponding point on the other plane
+        PlanePlaneIntersection ppI;
+        LineSphereIntersection lsI;
+        if(planeInter[index0].type != PlaneSphereIntersection.eType.None)
+        {
+            // main plane d
+            ppI = new PlanePlaneIntersection(sidePlanes[index0], sidePlanes[index1]);
+            lsI = new LineSphereIntersection(ppI.O, ppI.D, center, radius);
+            if (lsI.type != LineSphereIntersection.eType.None)
+            {
+                return lsI.I0;
+                //result.Add(lsI.I0);
+                //if (lsI.type == LineSphereIntersection.eType.TwoPoints)
+                //{
+                //    result.Add(lsI.I1);
+                //}
+
+            }
+            Debug.LogError("Shit");
+        }
+        ppI = new PlanePlaneIntersection(sidePlanes[index1], backPlane);
+        lsI = new LineSphereIntersection(ppI.O, ppI.D, center, radius);
+        if(lsI.type != LineSphereIntersection.eType.None)
+            return lsI.I0;
+        Debug.LogError("And shit");
+        return p0;
+    }
+    /// <summary>
+    /// returns the point on the sphere, that's closest to the side plane of
+    /// given index AND on the correct side of the plane (i.e. the side visible by the camera)
+    /// </summary>
+    /// <param name="planeIndex"></param>
+    /// <returns></returns>
+    private Vector3 GetPointClosestToPlane(int planeIndex)
     {
         switch (planeInter[planeIndex].type)
         {
             case PlaneSphereIntersection.eType.None:
-                // find the point on the back plane
-                // project the sphere's center on the down sidePlane
-                // project it on the back intersection circle
-                return backPlaneInter.ProjectOnCircle(sidePlanes[planeIndex].Projection(center));
+
+                // the plane doesn't intersect with the sphere, we have to 
+                // find the point on the back plane:
+                // 1. project the sphere's center on the sidePlane
+                // 2. project the result on the back intersection circle
+                return backPlaneInter.ProjectOnCircle(
+                    sidePlanes[planeIndex].Projection(center));
                 
             case PlaneSphereIntersection.eType.Circle:
-                // the sphere is intersecting the lower plane
-                // project the seed intersection on its intersection circle
+                // the sphere is intersecting the plane:
+                // just project the seed intersection on its intersection circle
                 return planeInter[planeIndex].ProjectOnCircle(seedInter.I);
             case PlaneSphereIntersection.eType.Point:
-                // the sphere is just tangent to the plane
+                // the sphere is just tangent to the plane, the
+                // contact point is what we want
                 return planeInter[planeIndex].onPlane;
             default:
                 throw new ArgumentOutOfRangeException();
