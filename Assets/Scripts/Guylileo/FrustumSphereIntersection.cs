@@ -137,8 +137,11 @@ public class FrustumSphereIntersection
 #if UNITY_EDITOR
         public void DrawGizmo()
         {
+            int i=0;
             foreach (CircleSegment segment in this)
             {
+                ++i;
+                Handles.Label(segment.center+segment.@from*segment.radius, i.ToString());
                 segment.DrawGizmo();
             }
         }
@@ -279,7 +282,9 @@ public class FrustumSphereIntersection
                 continue;
             Vector3 s,e;
             GetPointsForCircleIntersection(i, out s, out e);
-            lsb.Add(new SegmentBuilder(i, s, e));
+
+            if(IsVisible(e) || IsVisible(s))
+                lsb.Add(new SegmentBuilder(i, s, e));
         }
 
         for (var index = 0; index < lsb.Count; index++)
@@ -295,6 +300,16 @@ public class FrustumSphereIntersection
                 junction.BuildSegment(this);
             }
         }
+    }
+
+    private bool IsVisible(Vector3 p0)
+    {
+        foreach (Plane p in plane)
+        {
+            if(p.Distance(p0) < -0.0001f)
+                return false;
+        }
+        return true;
     }
 
     private bool GetPointsForCircleIntersection(int index, out Vector3 start, out Vector3 end)
@@ -367,7 +382,7 @@ public class FrustumSphereIntersection
     {
         Handles.color = Color.magenta;
         //backPlane.DrawGizmo(3);
-        Handles.zTest = CompareFunction.LessEqual;
+        //Handles.zTest = CompareFunction.LessEqual;
         backPlaneInter.DrawGizmo(0.01f);
         float gizmoSize = 0.006125f;
         for (int i = 0; i < 4; ++i)
