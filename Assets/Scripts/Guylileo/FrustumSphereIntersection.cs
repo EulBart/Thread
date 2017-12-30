@@ -62,6 +62,8 @@ public class FrustumSphereIntersection
         public readonly float radius;
         public readonly float angle;
 
+        public Color color;
+
         public CircleSegment(Vector3 center, Vector3 n, Vector3 start, Vector3 end)
         {
             this.center = center;
@@ -84,24 +86,7 @@ public class FrustumSphereIntersection
             }
             
         }
-        /*
-        public CircleSegment(Vector3 center, Vector3 start, Vector3 end)
-        {
-            this.center = center;
-            @from = start-center;
-            to = (end-center).normalized;
-            radius = @from.magnitude;
-            @from /= radius;
-            //Quaternion q=Quaternion.FromToRotation(@from, to);
-            //q.ToAngleAxis(out angle, out normal);
 
-            normal = Vector3.Cross(@from, to);
-            float sin = normal.magnitude;
-            normal /= sin;
-            float cos = Vector3.Dot(@from, to);
-            angle = Mathf.Atan2(sin, cos) * Mathf.Rad2Deg;
-        }
-    */
         public CircleSegment(Vector3 center, Vector3 normal, Vector3 start, float angle)
         {
             this.center = center;
@@ -112,20 +97,22 @@ public class FrustumSphereIntersection
             from /= radius;
             Quaternion q = Quaternion.AngleAxis(angle, normal);
             to = q * from;
+            color = Color.magenta;
         }
 #if UNITY_EDITOR
         public void DrawGizmo()
         {
             const float extra = 1f;
+            Handles.color = color;
             Handles.DrawWireArc(center, normal, from, angle, radius * extra);
-            Vector3 start = center + @from*radius*extra;
-            Handles.DotHandleCap(0, start, Quaternion.identity, 0.01f, Event.current.type );
+            //Vector3 start = center + @from*radius*extra;
+            //Handles.DotHandleCap(0, start, Quaternion.identity, 0.01f, Event.current.type );
 
-            if(angle < 360)
-            {
-                Vector3 end = center + to*radius*extra;
-                Handles.DotHandleCap(0, end, Quaternion.identity, 0.01f, Event.current.type );
-            }
+            //if(angle < 360)
+            //{
+            //    Vector3 end = center + to*radius*extra;
+            //    Handles.DotHandleCap(0, end, Quaternion.identity, 0.01f, Event.current.type );
+            //}
         }
 #endif
 
@@ -197,25 +184,51 @@ public class FrustumSphereIntersection
         corners[4] = corners[0];
 
         Vector3 p0 = camPosition;
-        backPlane = Plane.SphereBackPlaneSeenFromPosition(p0, center, radius);
-        backPlaneInter = new PlaneSphereIntersection(backPlane, center, radius);
-        
-        seed = center;
-        for (int i = 0; i < 4; ++i)
+
+        float distanceSqr = (p0-center).sqrMagnitude;
+        if(distanceSqr > radius*radius)
         {
-            Vector3 p1 = corners[i];
-            Vector3 p2 = corners[i+1];
+            backPlane = Plane.SphereBackPlaneSeenFromPosition(p0, center, radius);
+            backPlaneInter = new PlaneSphereIntersection(backPlane, center, radius);
 
-            Plane p = new Plane(p0, p2, p1);
-            p.SetName(Vector3.Lerp(p1, p2, 0.5f), "SidePl" + i);
-            plane[i] = p;
-            planeInter[i] = new PlaneSphereIntersection(p, center, radius);
-            cornersInter[i] = new RaySphereIntersection(p0, p1-p0, center, radius);
-            moved[i] = MoveToPlaneIfOnNegativeSide(ref plane[i], ref seed);
+            seed = center;
+            for (int i = 0; i < 4; ++i)
+            {Vector3 p1 = corners[i];
+                Vector3 p2 = corners[i + 1];
+
+                Plane p = new Plane(p0, p2, p1);
+                p.SetName(Vector3.Lerp(p1, p2, 0.5f), "SidePl" + i);
+                plane[i] = p;
+                planeInter[i] = new PlaneSphereIntersection(p, center, radius);
+                cornersInter[i] = new RaySphereIntersection(p0, p1 - p0, center, radius);
+                moved[i] = MoveToPlaneIfOnNegativeSide(ref plane[i], ref seed);
+            }
+
+            seedInter = new RaySphereIntersection(camPosition, seed - camPosition, center, radius);
+            ComputeAllSegments();
         }
+        else
+        {
+            for (int i = 0; i < 4; ++i)
+            {
+                Vector3 p1 = corners[i];
+                Vector3 p2 = corners[i + 1];
+                Plane p = new Plane(p0, p1, p2);
+                p.SetName(Vector3.Lerp(p1, p2, 0.5f), "SidePl" + i);
+                plane[i] = p;
+                planeInter[i] = new PlaneSphereIntersection(p, center, radius);
+                cornersInter[i] = new RaySphereIntersection(p0, p1 - p0, center, radius);
+            }
 
-        seedInter = new RaySphereIntersection(camPosition, seed-camPosition, center, radius);
-        ComputeAllSegments();
+            allSegments.Clear();
+            for(int i = 0; i < 4;++i)
+            {
+                Vector3 start = cornersInter[i].I;
+                Vector3 end = cornersInter.Modulo(i+1).I;
+                SegmentBuilder builder = new SegmentBuilder(i, start, end);
+                builder.BuildSegment(this);
+            }
+        }
     }
 
     public class SegmentBuilder
@@ -234,10 +247,23 @@ public class FrustumSphereIntersection
 
         public void BuildSegment(FrustumSphereIntersection owner)
         {
-            PlaneSphereIntersection psI = planeIndex >=0 
-                ? owner.planeInter[planeIndex] 
-                : owner.backPlaneInter;
-            owner.allSegments.Add(new CircleSegment(psI.onPlane, psI.normal, start, end));
+            PlaneSphereIntersection psI;
+            Color color;
+            if (planeIndex >= 0)
+            {
+                psI = owner.planeInter[planeIndex];
+                color = colors[planeIndex];
+            }
+            else
+            {
+                psI = owner.backPlaneInter;
+                color = Color.magenta;
+            }
+            
+            owner.allSegments.Add(new CircleSegment(psI.onPlane, psI.normal, start, end)
+            {
+                color = color
+            });
         }
 
     }
@@ -306,10 +332,10 @@ public class FrustumSphereIntersection
     {
         foreach (Plane p in plane)
         {
-            if(p.Distance(p0) < -0.0001f)
+            if(p.Distance(p0) < -01.01f)
                 return false;
         }
-        return true;
+        return Vector3.Dot(p0-camPosition, camTransform.forward)>0;
     }
 
     private bool GetPointsForCircleIntersection(int index, out Vector3 start, out Vector3 end)
@@ -330,7 +356,53 @@ public class FrustumSphereIntersection
             return false;
         }
 
+        bool b0 = IsVisible(lsI.I0);
+        bool b1 = IsVisible(lsI.I1);
+
+        if(!b0 && !b1)
+        {
+            start = end = Vector3.zero;
+            return false;
+        }
         int previousIndex = (index + 3) % 4;
+        if(!b0)
+        {
+            if(circleInter[previousIndex].HasValue)
+            {
+                start = circleInter[previousIndex].Value;
+                end = lsI.I1;
+                return true;
+            }
+            if (circleInter[index].HasValue)
+            {
+                start = lsI.I1;
+                end = circleInter[index].Value;
+                return true;
+            }
+            start = end = Vector3.zero;
+            return false;
+        }
+        if(!b1)
+        {
+            if(circleInter[previousIndex].HasValue)
+            {
+                start = circleInter[previousIndex].Value;
+                end = lsI.I0;
+                return true;
+
+            }
+            if (circleInter[index].HasValue)
+            {
+                start = lsI.I0;
+                end = circleInter[index].Value;
+                return true;
+            }
+            start = end = Vector3.zero;
+            return false;            
+        }
+
+
+        
         if(plane[previousIndex].Distance(lsI.I0) < plane[previousIndex].Distance(lsI.I1))
         {
             start = circleInter[previousIndex].HasValue ? circleInter[previousIndex].Value : lsI.I0;
@@ -361,8 +433,23 @@ public class FrustumSphereIntersection
 
         if(lsI.type == LineSphereIntersection.eType.OnePoint)
             return lsI.I0;
-        float d0 = (lsI.I0 - camPosition).sqrMagnitude;
-        float d1 = (lsI.I1 - camPosition).sqrMagnitude;
+        Vector3 OI0 = (lsI.I0 - camPosition);
+        Vector3 OI1 = (lsI.I1 - camPosition);
+        Vector3 camDir = camTransform.forward;
+        if(Vector3.Dot(camDir, OI0)<0)
+        {
+            if(Vector3.Dot(camDir, OI1)<0)
+                return null;
+            return lsI.I0;
+        }
+        else
+        {
+            if(Vector3.Dot(camDir, OI1)<0)
+                return lsI.I0;
+        }
+
+        float d0 = OI0.sqrMagnitude;
+        float d1 = OI1.sqrMagnitude;
         return d0 > d1 ? lsI.I1 : lsI.I0;
     }
     
@@ -380,10 +467,10 @@ public class FrustumSphereIntersection
 #if UNITY_EDITOR
     public void DrawGizmos()
     {
-        Handles.color = Color.magenta;
+        //Handles.color = Color.magenta;
         //backPlane.DrawGizmo(3);
         //Handles.zTest = CompareFunction.LessEqual;
-        backPlaneInter.DrawGizmo(0.01f);
+        //backPlaneInter.DrawGizmo(0.01f);
         float gizmoSize = 0.006125f;
         for (int i = 0; i < 4; ++i)
         {
