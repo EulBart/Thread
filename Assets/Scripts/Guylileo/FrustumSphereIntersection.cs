@@ -23,23 +23,139 @@ public class FrustumSphereIntersection
     private float radius;
 
     private Plane backPlane;
-    private Plane[] sidePlanes = new Plane[4];
+    private Plane[] plane = new Plane[4];
+
+    // at index i, find the intersection between circle i and circle i+1
+    private Vector3?[] circleInter = new Vector3?[4];
+
     private PlaneSphereIntersection backPlaneInter;
     private PlaneSphereIntersection[] planeInter = new PlaneSphereIntersection[4];
     //private RaySphereIntersection centerInter;
     private RaySphereIntersection[] cornersInter = new RaySphereIntersection[4];
     private Transform camTransform;
+
+    /// <summary>
+    /// starting point of mesh generation...
+    /// basically, the closest point to the sphere's center
+    /// that's in the frustum.
+    /// </summary>
+    Vector3 seed;
+    /// <summary>
+    /// Intersection of the vector camera to seed and sphere
+    /// </summary>
+    RaySphereIntersection seedInter;
+
+    /// <summary>
+    /// moved[i] is true if center of the sphere is on the non visible
+    /// side of sidePlane[i]
+    /// </summary>
+    private bool[] moved = new bool[4];
+
+    private readonly SegmentList allSegments;
+    public class CircleSegment
+    {
+        public readonly Vector3 center;
+        public readonly Vector3 normal;
+        public readonly Vector3 from;
+        public readonly Vector3 to;
+
+        public readonly float radius;
+        public readonly float angle;
+
+        public CircleSegment(Vector3 center, Vector3 n, Vector3 start, Vector3 end)
+        {
+            this.center = center;
+            @from = start-center;
+            to = (end-center).normalized;
+            radius = @from.magnitude;
+            @from /= radius;
+            //Quaternion q=Quaternion.FromToRotation(@from, to);
+            //q.ToAngleAxis(out angle, out normal);
+
+            normal = Vector3.Cross(@from, to);
+            float sin = normal.magnitude;
+            normal /= sin;
+            float cos = Vector3.Dot(@from, to);
+            angle = Mathf.Atan2(sin, cos) * Mathf.Rad2Deg;
+            if(Vector3.Dot(n, normal)<0)
+            {
+                normal = n;
+                angle = 360-angle;
+            }
+            
+        }
+        /*
+        public CircleSegment(Vector3 center, Vector3 start, Vector3 end)
+        {
+            this.center = center;
+            @from = start-center;
+            to = (end-center).normalized;
+            radius = @from.magnitude;
+            @from /= radius;
+            //Quaternion q=Quaternion.FromToRotation(@from, to);
+            //q.ToAngleAxis(out angle, out normal);
+
+            normal = Vector3.Cross(@from, to);
+            float sin = normal.magnitude;
+            normal /= sin;
+            float cos = Vector3.Dot(@from, to);
+            angle = Mathf.Atan2(sin, cos) * Mathf.Rad2Deg;
+        }
+    */
+        public CircleSegment(Vector3 center, Vector3 normal, Vector3 start, float angle)
+        {
+            this.center = center;
+            this.normal = normal;
+            @from = start-center;
+            this.angle = angle;
+            radius = from.magnitude;
+            from /= radius;
+            Quaternion q = Quaternion.AngleAxis(angle, normal);
+            to = q * from;
+        }
+#if UNITY_EDITOR
+        public void DrawGizmo()
+        {
+            const float extra = 1f;
+            Handles.DrawWireArc(center, normal, from, angle, radius * extra);
+            Vector3 start = center + @from*radius*extra;
+            Handles.DotHandleCap(0, start, Quaternion.identity, 0.01f, Event.current.type );
+
+            if(angle < 360)
+            {
+                Vector3 end = center + to*radius*extra;
+                Handles.DotHandleCap(0, end, Quaternion.identity, 0.01f, Event.current.type );
+            }
+        }
+#endif
+
+
+    }
+
+    public class SegmentList : List<CircleSegment>
+    {
+#if UNITY_EDITOR
+        public void DrawGizmo()
+        {
+            foreach (CircleSegment segment in this)
+            {
+                segment.DrawGizmo();
+            }
+        }
+#endif
+    }
+
    
     public Vector3 camPosition
     {
         get { return camTransform.position;}
     }
-        
 
     public FrustumSphereIntersection(Camera cam, Vector3 center, float radius)
     {
         main = cam;
         camTransform = cam.transform;
+        allSegments = new SegmentList();
         SetSphere(center, radius);
     }
 
@@ -62,9 +178,6 @@ public class FrustumSphereIntersection
         Compute();
     }   
 
-    Vector3 seed;
-    RaySphereIntersection seedInter;
-    private bool[] moved = new bool[4];
 
     public void Compute()
     {
@@ -92,159 +205,152 @@ public class FrustumSphereIntersection
 
             Plane p = new Plane(p0, p2, p1);
             p.SetName(Vector3.Lerp(p1, p2, 0.5f), "SidePl" + i);
-            sidePlanes[i] = p;
+            plane[i] = p;
             planeInter[i] = new PlaneSphereIntersection(p, center, radius);
             cornersInter[i] = new RaySphereIntersection(p0, p1-p0, center, radius);
-            moved[i] = MoveToPlaneIfOnNegativeSide(ref sidePlanes[i], ref seed);
+            moved[i] = MoveToPlaneIfOnNegativeSide(ref plane[i], ref seed);
         }
 
         seedInter = new RaySphereIntersection(camPosition, seed-camPosition, center, radius);
-        v0 = v0 ?? new List<Vector3>();
-        v0.Clear();
-
-        if(seedInter.type != RaySphereIntersection.eType.InFront)
-        {
-            return;
-        }
-
-        GetQuadrantPoints(v0, 0, 3);
-        GetQuadrantPoints(v0, 1, 0);
-        GetQuadrantPoints(v0, 2, 1);
-        GetQuadrantPoints(v0, 3, 2);
+        ComputeAllSegments();
     }
 
-    private List<Vector3> v0;
-
-
-    // Get the list for generating vertices in quadrant defined
-    // by the two side planes of indices index0 and index1
-    private void GetQuadrantPoints(List<Vector3> result, int index0, int index1)
+    public class SegmentBuilder
     {
-        if(moved[index0] || moved[index1])
+        private readonly FrustumSphereIntersection owner;
+        public int planeIndex;
+        public Vector3 start;
+        public Vector3 end;
+
+        public SegmentBuilder(int i, Vector3 start, Vector3 end)
+        {
+            planeIndex = i;
+            this.start = start;
+            this.end = end;
+        }
+
+        public void BuildSegment(FrustumSphereIntersection owner)
+        {
+            PlaneSphereIntersection psI = planeIndex >=0 
+                ? owner.planeInter[planeIndex] 
+                : owner.backPlaneInter;
+            owner.allSegments.Add(new CircleSegment(psI.onPlane, psI.normal, start, end));
+        }
+
+    }
+
+    private int GetFirstIntersectingPlane(int index)
+    {
+        for(int i = 0; i < 4;++i)
+        {
+            index = (index+1)%4;
+            if (planeInter[index].type != PlaneSphereIntersection.eType.Circle)
+                continue;
+            return index;
+        }
+        return -1;
+    }
+
+    private void ComputeAllSegments()
+    {
+        allSegments.Clear();
+        for(int i = 0; i < 4;++i)
+        {
+            circleInter[i] = GetInterWithNextCircle(i);
+        }
+
+        if(seedInter.type == RaySphereIntersection.eType.None)
             return;
 
-        result.Add(seedInter.I);
-
-        bool cornerIntersects = cornersInter[index0].type != RaySphereIntersection.eType.None;
-
-        Vector3 p0 = GetSidePoint(index0, index1);
-        result.Add(p0);
-        if(!cornerIntersects)
+        
+        int firstIndex = GetFirstIntersectingPlane(-1);
+        if(firstIndex == -1)
         {
-            AddPossibleExtraPoint(result, index0, index1);
+        // sphere is fully visible, the backCircle is the only circle segment
+        // just take the point closest to any side plane as start
+            Vector3 start =  backPlaneInter.ProjectOnCircle(plane[0].ProjectedPoint(center));
+            allSegments.Add(new CircleSegment(backPlaneInter.onPlane, backPlane.normal, start, 360));
+            return;
+        }
+        var lsb = new List<SegmentBuilder>();
+        for(int i = 0; i < 4; ++i)
+        {
+            if (planeInter[i].type != PlaneSphereIntersection.eType.Circle)
+                continue;
+            Vector3 s,e;
+            GetPointsForCircleIntersection(i, out s, out e);
+            lsb.Add(new SegmentBuilder(i, s, e));
+        }
+
+        for (var index = 0; index < lsb.Count; index++)
+        {
+            SegmentBuilder builder = lsb[index];
+            builder.BuildSegment(this);
+            if(!circleInter[builder.planeIndex].HasValue)
+            {
+                // that segment doesn't end on a side circle,
+                // we have to make the junction with the next one 
+                SegmentBuilder nextBuilder = lsb[(index+1)%lsb.Count];
+                SegmentBuilder junction = new SegmentBuilder(-1, builder.end, nextBuilder.start);
+                junction.BuildSegment(this);
+            }
+        }
+    }
+
+    private bool GetPointsForCircleIntersection(int index, out Vector3 start, out Vector3 end)
+    {
+        PlanePlaneIntersection ppI = new PlanePlaneIntersection(plane[index], backPlane);
+        LineSphereIntersection lsI = new LineSphereIntersection(ppI.O, ppI.D, center, radius);
+        if(lsI.type == LineSphereIntersection.eType.None)
+        {
+            Debug.LogError("This should not be possible");
+            start = end = Vector3.zero;
+            return false;
+        }
+
+        if(lsI.type == LineSphereIntersection.eType.OnePoint)
+        {
+            // just grazing the surface, don't add a segment for that
+            start = end = Vector3.zero;
+            return false;
+        }
+
+        int previousIndex = (index + 3) % 4;
+        if(plane[previousIndex].Distance(lsI.I0) < plane[previousIndex].Distance(lsI.I1))
+        {
+            start = circleInter[previousIndex].HasValue ? circleInter[previousIndex].Value : lsI.I0;
+            end = circleInter[index].HasValue ? circleInter[index].Value : lsI.I1;
         }
         else
         {
-            result.Add(cornersInter[index0].I);
+            start = circleInter[previousIndex].HasValue ? circleInter[previousIndex].Value : lsI.I1;
+            end = circleInter[index].HasValue ? circleInter[index].Value : lsI.I0;
         }
-        if(!cornerIntersects)
-        {
-            AddPossibleExtraPoint(result, index1, index0);
-        }
-        Vector3 p1 = GetSidePoint(index1, index0);
-        result.Add(p1);
+        return true;
     }
 
-    private void AddPossibleExtraPoint(List<Vector3> result, int index0, int index1)
+    private Vector3? GetInterWithNextCircle(int i)
     {
-        if (planeInter[index0].type != PlaneSphereIntersection.eType.None)
-        {
-            // the plane intersects with the sphere, we have to add another
-            // construction point on the intersection of this plane
-            // and the backPlane (on the sphere too, obviously)
-            var ppI = new PlanePlaneIntersection(sidePlanes[index0], backPlane);
-            var lsI = new LineSphereIntersection(ppI.O, ppI.D, center, radius);
 
-            if (lsI.type != LineSphereIntersection.eType.None)
-            {
-                if (lsI.type == LineSphereIntersection.eType.OnePoint)
-                {
-                    result.Add(lsI.I0);
-                }
-                else
-                {
-                    float d0 = sidePlanes[index1].Distance(lsI.I0);
-                    float d1 = sidePlanes[index1].Distance(lsI.I1);
-                    // returns the point closest to the other plane
-                    result.Add(d0 < d1 ? lsI.I0 : lsI.I1);
-                }
-            }
-        }
-    }
+        if(planeInter[i].type != PlaneSphereIntersection.eType.Circle)
+            return null;
 
-    /// <summary>
-    /// Get the side point for the main plane (index0) given the other plane of the quadrant
-    /// we're building
-    /// </summary>
-    /// <param name="index0"></param>
-    /// <param name="index1"></param>
-    /// <returns></returns>
-    private Vector3 GetSidePoint(int index0, int index1)
-    {
-        Vector3 p0 = GetPointClosestToPlane(index0);
-        if (sidePlanes[index1].Distance(p0) > 0)
-        {
-            // the other plane doesn't exclude it from view, so this is it.
-            return p0;
-        }
-        // we now have to find the corresponding point on the other plane
-        PlanePlaneIntersection ppI;
-        LineSphereIntersection lsI;
-        if(planeInter[index0].type != PlaneSphereIntersection.eType.None)
-        {
-            // main plane d
-            ppI = new PlanePlaneIntersection(sidePlanes[index0], sidePlanes[index1]);
-            lsI = new LineSphereIntersection(ppI.O, ppI.D, center, radius);
-            if (lsI.type != LineSphereIntersection.eType.None)
-            {
-                return lsI.I0;
-                //result.Add(lsI.I0);
-                //if (lsI.type == LineSphereIntersection.eType.TwoPoints)
-                //{
-                //    result.Add(lsI.I1);
-                //}
+        int nextIndex = (i+1)%4;
+        if(planeInter[nextIndex].type != PlaneSphereIntersection.eType.Circle)
+            return null;
 
-            }
-            Debug.LogError("Shit");
-        }
-        ppI = new PlanePlaneIntersection(sidePlanes[index1], backPlane);
-        lsI = new LineSphereIntersection(ppI.O, ppI.D, center, radius);
-        if(lsI.type != LineSphereIntersection.eType.None)
+        PlanePlaneIntersection ppI = new PlanePlaneIntersection(plane[i], plane[nextIndex]);
+        LineSphereIntersection lsI = new LineSphereIntersection(ppI.O, ppI.D, center, radius);
+        if(lsI.type == LineSphereIntersection.eType.None)
+            return null;
+
+        if(lsI.type == LineSphereIntersection.eType.OnePoint)
             return lsI.I0;
-        Debug.LogError("And shit");
-        return p0;
+        float d0 = (lsI.I0 - camPosition).sqrMagnitude;
+        float d1 = (lsI.I1 - camPosition).sqrMagnitude;
+        return d0 > d1 ? lsI.I1 : lsI.I0;
     }
-    /// <summary>
-    /// returns the point on the sphere, that's closest to the side plane of
-    /// given index AND on the correct side of the plane (i.e. the side visible by the camera)
-    /// </summary>
-    /// <param name="planeIndex"></param>
-    /// <returns></returns>
-    private Vector3 GetPointClosestToPlane(int planeIndex)
-    {
-        switch (planeInter[planeIndex].type)
-        {
-            case PlaneSphereIntersection.eType.None:
-
-                // the plane doesn't intersect with the sphere, we have to 
-                // find the point on the back plane:
-                // 1. project the sphere's center on the sidePlane
-                // 2. project the result on the back intersection circle
-                return backPlaneInter.ProjectOnCircle(
-                    sidePlanes[planeIndex].Projection(center));
-                
-            case PlaneSphereIntersection.eType.Circle:
-                // the sphere is intersecting the plane:
-                // just project the seed intersection on its intersection circle
-                return planeInter[planeIndex].ProjectOnCircle(seedInter.I);
-            case PlaneSphereIntersection.eType.Point:
-                // the sphere is just tangent to the plane, the
-                // contact point is what we want
-                return planeInter[planeIndex].onPlane;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
-    }
+    
 
     private bool MoveToPlaneIfOnNegativeSide(ref Plane sidePlane, ref Vector3 p0)
     {
@@ -263,20 +369,18 @@ public class FrustumSphereIntersection
         //backPlane.DrawGizmo(3);
         Handles.zTest = CompareFunction.LessEqual;
         backPlaneInter.DrawGizmo(0.01f);
-        const float gizmoSize = 0.006125f;
+        float gizmoSize = 0.006125f;
         for (int i = 0; i < 4; ++i)
         {
             Handles.color = colors[i];
-            sidePlanes[i].DrawGizmo(gizmoSize);
-            planeInter[i].DrawGizmo(gizmoSize);
+            //sidePlanes[i].DrawGizmo(gizmoSize);
+            Handles.DrawLine(corners[i], camPosition);
+            //planeInter[i].DrawGizmo(gizmoSize);
         }
-        Handles.color = Color.cyan;
-        for (var index = 0; index < v0.Count; index++)
-        {
-            Vector3 v = v0[index];
-            Handles.DotHandleCap(0, v, Quaternion.identity, gizmoSize, Event.current.type);
-            Handles.Label(v, index.ToString());
-        }
+
+
+        Handles.color = Color.white;
+        allSegments.DrawGizmo();
     }
 #endif
 }

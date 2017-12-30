@@ -28,6 +28,7 @@ public class Observer : MonoBehaviour
     [SerializeField] Slider longitudeSlider;
     [Header("MeshControl")]
     [SerializeField] SphereMeshBuilder mesh;
+
     public bool showHandles;
 
     Vector3 localLookAt;
@@ -151,6 +152,8 @@ public class Observer : MonoBehaviour
     public Vector3 up,north,east;
     Transform parent;
     private CameraClearFlags oldFlags;
+    
+
     public Vector3 bearingDirection 
     {
         private set ;get;
@@ -191,6 +194,11 @@ public class Observer : MonoBehaviour
         up = new Vector3(cosl * cosL, sinl, cosl * sinL);
         transform.localPosition = (mesh.radius + 2*mainNearClipPlane + altitude/1000f) * up;
         
+        if(!showHandles)
+        {
+            return;
+        }
+
         north = new Vector3(-cosL * sinl, cosl, -sinl * sinL);
         east = new Vector3(-sinL*cosl, 0,cosl*cosL);
 

@@ -13,14 +13,12 @@ public class ObserverEditor : Editor
 
     void OnSceneGUI()
     {
-        Tools.current = Tool.None;
-
-        
-
         Observer o = target as Observer;
 
         if(!o.showHandles)
             return;
+
+        Tools.current = Tool.None;
 
         var c = o.GetCoordinates();
         
