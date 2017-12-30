@@ -124,11 +124,12 @@ public class FrustumSphereIntersection
 #if UNITY_EDITOR
         public void DrawGizmo()
         {
-            int i=0;
+            //int i=0;
             foreach (CircleSegment segment in this)
             {
-                ++i;
-                Handles.Label(segment.center+segment.@from*segment.radius, i.ToString());
+                //++i;
+                //Vector3 position = segment.center+segment.@from*segment.radius;
+                //Handles.Label(position, i.ToString()+" :"+ position.ToString("0.0"));
                 segment.DrawGizmo();
             }
         }
@@ -332,10 +333,16 @@ public class FrustumSphereIntersection
     {
         foreach (Plane p in plane)
         {
-            if(p.Distance(p0) < -01.01f)
+            if(p.Distance(p0) < -0.00001f)
                 return false;
         }
-        return Vector3.Dot(p0-camPosition, camTransform.forward)>0;
+        return IsInFront(p0);
+    }
+
+    private bool IsInFront(Vector3 p0)
+    {
+        var dir = p0-camPosition;
+        return Vector3.Dot(dir, camTransform.forward)>0;
     }
 
     private bool GetPointsForCircleIntersection(int index, out Vector3 start, out Vector3 end)
@@ -356,8 +363,8 @@ public class FrustumSphereIntersection
             return false;
         }
 
-        bool b0 = IsVisible(lsI.I0);
-        bool b1 = IsVisible(lsI.I1);
+        bool b0 = IsInFront(lsI.I0);
+        bool b1 = IsInFront(lsI.I1);
 
         if(!b0 && !b1)
         {
@@ -370,7 +377,7 @@ public class FrustumSphereIntersection
             if(circleInter[previousIndex].HasValue)
             {
                 start = circleInter[previousIndex].Value;
-                end = lsI.I1;
+                end = circleInter[index].HasValue ? circleInter[index].Value : lsI.I1;
                 return true;
             }
             if (circleInter[index].HasValue)
@@ -387,7 +394,7 @@ public class FrustumSphereIntersection
             if(circleInter[previousIndex].HasValue)
             {
                 start = circleInter[previousIndex].Value;
-                end = lsI.I0;
+                end = circleInter[index].HasValue ? circleInter[index].Value : lsI.I0;
                 return true;
 
             }
@@ -476,7 +483,10 @@ public class FrustumSphereIntersection
         {
             Handles.color = colors[i];
             //sidePlanes[i].DrawGizmo(gizmoSize);
-            Handles.DrawLine(corners[i], camPosition);
+            if(cornersInter[i].type == RaySphereIntersection.eType.InFront)
+                Handles.DrawLine(cornersInter[i].I, camPosition);
+            else
+                Handles.DrawLine(corners[i], camPosition);
             //planeInter[i].DrawGizmo(gizmoSize);
         }
 
