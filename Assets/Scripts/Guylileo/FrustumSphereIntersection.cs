@@ -52,6 +52,8 @@ public class FrustumSphereIntersection
     private bool[] moved = new bool[4];
 
     private readonly SegmentList allSegments;
+    private Vector3 barycenter;
+
     public class CircleSegment
     {
         public readonly Vector3 center;
@@ -63,6 +65,14 @@ public class FrustumSphereIntersection
         public readonly float angle;
 
         public Color color;
+
+        public Vector3 Start
+        {
+            get
+            {
+                return center + radius * @from;
+            }
+        }
 
         public CircleSegment(Vector3 center, Vector3 n, Vector3 start, Vector3 end)
         {
@@ -230,6 +240,23 @@ public class FrustumSphereIntersection
                 builder.BuildSegment(this);
             }
         }
+
+        barycenter = Vector3.zero;
+        if(allSegments.Count>0)
+        {
+            
+            foreach (CircleSegment circleSegment in allSegments)
+            {
+                //for(float angle = 0; angle < circleSegment.angle; angle += 5)
+                {
+
+                    barycenter += circleSegment.Start;
+                }
+            }
+            barycenter /= allSegments.Count;
+            barycenter = center + (barycenter-center).normalized * radius;
+        }
+
     }
 
     public class SegmentBuilder
@@ -490,9 +517,10 @@ public class FrustumSphereIntersection
             //planeInter[i].DrawGizmo(gizmoSize);
         }
 
-
         Handles.color = Color.white;
         allSegments.DrawGizmo();
+
+        Handles.DotHandleCap(0, barycenter, Quaternion.identity, gizmoSize, Event.current.type);
     }
 #endif
 }
