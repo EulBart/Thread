@@ -1,13 +1,11 @@
-﻿using OSG;
+﻿
+using System.Collections;
+using Guylileo;
 using OSG.Debug;
 using TMPro;
-#if UNITY_EDITOR
 using UnityEditor;
-#endif
 using UnityEngine;
 using UnityEngine.UI;
-using Plane = OSG.Plane;
-using UnityEngine.Rendering;
 
 [ExecuteInEditMode]
 public class Observer : MonoBehaviour
@@ -126,6 +124,8 @@ public class Observer : MonoBehaviour
     public bool showBackPlane;
     public bool[] showPlane = new bool[4];
 
+    public FrustumSphereMeshBuilder builder;
+
 #if UNITY_EDITOR
     private FrustumSphereIntersection fsi;
     private void OnDrawGizmos()
@@ -140,6 +140,11 @@ public class Observer : MonoBehaviour
             fsi.SetSphere(parentPosition, mesh.radius);
         }
         fsi.DrawGizmos();
+
+        if(builder!=null)
+        {
+            builder.DrawGizmos();
+        }
     }
 #endif
 
@@ -279,8 +284,20 @@ public class Observer : MonoBehaviour
         return new Vector2(longitude, latitude);
     }
 
-  
+    public int triangleRatio = 10;
+    public void BuildMesh()
+    {
+        builder = new FrustumSphereMeshBuilder(transform.parent.position, mesh.radius, main, triangleRatio);
+#if UNITY_EDITOR
+        if(!EditorApplication.isPlaying)
+        {
+            builder.Generate();
+            return;
+        }
+#endif
+        StopAllCoroutines();
+        StartCoroutine(builder.GenerateCoroutine());
+    }
 
-
-
+ 
 }

@@ -11,12 +11,25 @@ public class ObserverEditor : Editor
         previousTool = Tools.current;
     }
 
+    public override void OnInspectorGUI()
+    {
+        Observer o = target as Observer;
+
+        base.OnInspectorGUI();
+        if(GUILayout.Button("MERDE"))
+        {
+            o.BuildMesh();
+        }
+
+    }
+
     void OnSceneGUI()
     {
         Observer o = target as Observer;
 
         if(!o.showHandles)
             return;
+
 
         Tools.current = Tool.None;
 
