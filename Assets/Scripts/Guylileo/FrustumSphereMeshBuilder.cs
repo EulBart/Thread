@@ -26,6 +26,7 @@ namespace Guylileo
         }
 
         Plane[] plane;
+        PlaneSphereIntersection psi;
 
         public FrustumSphereMeshBuilder(Vector3 center, float radius, Camera cam, int triangleRatio)
         {
@@ -59,7 +60,7 @@ namespace Guylileo
             if (distanceSqr > radius * radius)
             {
                 plane[4] = Plane.SphereBackPlaneSeenFromPosition(p0, center, radius);
-                PlaneSphereIntersection psi = new PlaneSphereIntersection(plane[4], center, radius);
+                psi = new PlaneSphereIntersection(plane[4], center, radius);
                 seed = psi.ProjectOnCircle(camPosition);
                 for (int i = 0; i < 4; ++i)
                 {
@@ -77,24 +78,23 @@ namespace Guylileo
                 return;
             }
 
-            Vector3 axis = (seed - center).normalized;
+            Vector3 axis = plane[4].normal;
             Quaternion q = Quaternion.AngleAxis(120, axis);
             Vector3 direction = Vector3.Cross(axis, camTransform.up).normalized;
             
             direction *= radius/triangleRatio;
 
-            p0 = OnSphere(seed + direction) - center;
+            p0 = direction;
 
             p1 = q * p0;
             p2 = q * p1;
-            p0 += center;
-            p1 = OnSphere(center + p1);
-            p2 = OnSphere(center + p2);
-            first = new TriangleData(new List<VerticeData>(), p0, p1, p2, "0");
+            p0 += seed;
+            p1 += seed;
+            p2 += seed;
+            first = new TriangleData(new List<VerticeData>(), p0, p1, p2, "0", psi);
             first[0].isVisible = first.IsVisible(first[0].pos, plane);
             first[1].isVisible = first.IsVisible(first[1].pos, plane);
             first[2].isVisible = first.IsVisible(first[2].pos, plane);
-            
         }
 
         class WaitForClick : CustomYieldInstruction
@@ -118,9 +118,10 @@ namespace Guylileo
         }
 
 
+        List<TriangleData> toDo;
         public void Generate()
         {
-            var toDo = new List<TriangleData>{first};
+            toDo = new List<TriangleData>{first};
             triangles.Clear();
             int count=0;
             while (OneStep(toDo))
@@ -133,9 +134,10 @@ namespace Guylileo
 
         public IEnumerator GenerateCoroutine()
         {
-            var toDo = new List<TriangleData>{first};
+            toDo = new List<TriangleData>{first};
             var clic = new WaitForClick();
             triangles.Clear();
+            yield return clic;
             while (OneStep(toDo))
             {
                 yield return clic;
@@ -151,9 +153,9 @@ namespace Guylileo
             toDo.RemoveAt(index);
             triangles.Add(triangle);
 
-            TriangleData t0 = triangle.CreateNeighbour(0, plane, center, radius, triangles.Count + ".0"); 
-            TriangleData t1 = triangle.CreateNeighbour(1, plane, center, radius, triangles.Count + ".1");
-            TriangleData t2 = triangle.CreateNeighbour(2, plane, center, radius, triangles.Count + ".2");
+            TriangleData t0 = triangle.CreateNeighbour(0, plane, triangles.Count + ".0"); 
+            TriangleData t1 = triangle.CreateNeighbour(1, plane, triangles.Count + ".1");
+            TriangleData t2 = triangle.CreateNeighbour(2, plane, triangles.Count + ".2");
             if (t0 != null)
             {
                 toDo.Add(t0);
@@ -204,7 +206,9 @@ namespace Guylileo
         public class TriangleData
         {
             public readonly string name;
-            private List<VerticeData> vertices;
+            public List<VerticeData> vertices;
+            private readonly PlaneSphereIntersection psi;
+            public readonly Vector3 com;
             
             public override string ToString()
             {
@@ -230,6 +234,10 @@ namespace Guylileo
                 {
                     vertices.Add(new VerticeData(pos, this));
                 }
+                else
+                {
+                    vertices[p[i]].triangles.Add(this);
+                }
             }
 
             public int GetVectorIndex(Vector3 value)
@@ -247,13 +255,24 @@ namespace Guylileo
             public TriangleData(TriangleData parent, int i0, int i1, Vector3 p2, string name)
             {
                 this.name = name;
+                psi = parent.psi;
                 vertices = parent.vertices;
                 p[0] = i0;
                 p[1] = i1;
+                vertices[i0].triangles.Add(this);
+                vertices[i1].triangles.Add(this);
                 SetVertice(2, p2);
+                com = Vector3.zero;
                 for(int i =0; i < 3; ++i)
                 {
+                    com += this[i].pos;
                     neighbour[i] = CheckNeighbour(p[i], p.Modulo(i+1));
+                }
+                com /= 3;
+
+                for(int i = 0; i < 3; ++i)
+                {
+                    display[i] = Vector3.Lerp(com, this[i].pos, 0.9f);
                 }
             }
 
@@ -264,8 +283,11 @@ namespace Guylileo
                 {
                     if(triangle == this)
                         continue;
-                    if(vertices[i1].triangles.Contains(triangle))
-                        triangle.SetAsNeighbour(i0, i1, this);
+                    if (!vertices[i1].triangles.Contains(triangle))
+                        continue;
+                    //this triangle has i0 and i1 as vertices, it's the neighbour
+                    triangle.SetAsNeighbour(i0, i1, this);
+                    return triangle;
                 }
                 return null;
             }
@@ -274,7 +296,7 @@ namespace Guylileo
             {
                 for(int i = 0; i <3;++i)
                 {
-                    if(p[i] == i0 || p[i]==i1)
+                    if(neighbour[i]==null && (p[i] == i0 || p[i]==i1))
                     {
                         neighbour[i] = n;
                         return;
@@ -283,22 +305,29 @@ namespace Guylileo
                 Debug.Log("Odd " + name + " doesn't have common vertice with " + n);
             }
 
-            public TriangleData(List<VerticeData> vertices, Vector3 p0, Vector3 p1, Vector3 p2, string name)
+            public TriangleData(List<VerticeData> vertices, Vector3 p0, Vector3 p1, Vector3 p2, string name, PlaneSphereIntersection psi)
             {
                 this.vertices = vertices;
                 this.name = name;
+                this.psi = psi;
                 SetVertice(0, p0);
                 SetVertice(1, p1);
                 SetVertice(2, p2);
+
+                com = (p0+p1+p2)/3;
+                for(int i = 0; i < 3; ++i)
+                {
+                    neighbour[i] = null;
+                    display[i] = Vector3.Lerp(com, this[i].pos, 0.9f);
+                }
             }
 
             public readonly int[] p = new int[3];
             private Dictionary<int, List<TriangleData>> verticeTriangles;
+            private Vector3[] display = new Vector3[3];
 
             public TriangleData CreateNeighbour(int i, 
                 Plane[] planes, 
-                Vector3 center, 
-                float radius, 
                 string name)
             {
                 if(neighbour[i] != null)
@@ -309,10 +338,8 @@ namespace Guylileo
                 VerticeData v0 = this[i];
                 VerticeData v1 = this[i+1];
                 VerticeData v2 = this[i+2];
-
-                Plane pl = new Plane(v0.pos, v1.pos, center);
-                Vector3 p2 = pl.SymetricPoint(v2.pos);
-                p2 = center + (p2 - center).normalized * radius;
+                
+                Vector3 p2 = v0.pos  + v1.pos - v2.pos;
 
                 bool newPointIsVisible = IsVisible(p2, planes);
                 if(!(newPointIsVisible || v0.isVisible || v1.isVisible))
@@ -325,6 +352,9 @@ namespace Guylileo
 
             public bool IsVisible(Vector3 p, Plane[] planes)
             {
+                Vector3 d = p-psi.onPlane;
+                if(d.sqrMagnitude > psi.circleRadius*psi.circleRadius)
+                    return false;
                 for(int i = planes.Length;--i>=0;)
                 {
                     if(planes[i].Distance(p)<0)
@@ -333,25 +363,42 @@ namespace Guylileo
                 return true;
             }
 
-            public bool IsVisible(Plane[] planes)
-            {
-                foreach (Plane pl in planes)
-                {
-                    if(pl.Distance(this[0].pos)<0
-                     &&pl.Distance(this[1].pos)<0
-                     &&pl.Distance(this[2].pos)<0)
-                        return false;
-                }
-                return true;
-            }
-
-            public void OnDrawGizmos(Vector3 center, float radius)
+            public void OnDrawGizmos(int index)
             {
 #if UNITY_EDITOR
 //                Vector3 middle = Vector3.zero;
                 for(int i = 0; i < 3;++i)
                 {
-                    Handles.DrawLine(this[i].pos, this[i+1].pos);
+                    if(index>=0)
+                    {
+                        string text = i.ToString();
+                        if(neighbour[i]!=null)
+                        {
+                            Handles.color = Color.cyan;
+                            Vector3 n = 0.5f*(com+neighbour[i].com);
+                            Handles.DrawDottedLine(com, n, 2);
+                            Handles.Label(0.5f*(n+com), text);
+                            Handles.color = Color.yellow;
+                        }
+                        else
+                        {
+                            Handles.color = Color.green;
+                        }
+                        Handles.Label(display[i], text);
+                        Handles.DrawLine(display[i], display[(i+1)%3]);
+                        //Handles.Label(com, index.ToString());
+                    }
+                    else
+                    {
+                        Handles.color = neighbour[i] == null ? Color.magenta: Color.cyan;
+                        Handles.DrawDottedLine(display[i], display[(i+1)%3], 1);
+                        Handles.Label(com, name);
+                    }
+                    
+
+                    //Handles.Label((display[i] + com)*0.5f, p[i].ToString());
+                    
+
   //                  middle += this[i].pos;
                 }
     /*            middle/=3;
@@ -371,12 +418,31 @@ namespace Guylileo
 #if UNITY_EDITOR
             if (triangles == null) return;
 
-            Handles.Label(seed, "Seed");
-            Handles.color = Color.cyan;
-            foreach (TriangleData t in triangles)
+            for (var index = 0; index < triangles.Count; index++)
             {
-                t.OnDrawGizmos(center, radius);
+                triangles[index].OnDrawGizmos(index);
             }
+            
+            return;
+#pragma warning disable 162
+            foreach (var data in toDo)
+            {
+                data.OnDrawGizmos(-1);
+            }
+
+            Handles.color = Color.cyan;
+            for (var index = 0; index < first.vertices.Count; index++)
+            {
+                var vd = first.vertices[index];
+                foreach (var triangleData in vd.triangles)
+                {
+                    Handles.DrawLine(vd.pos, triangleData.com);
+                }
+
+                //if (vd.isVisible)
+                //    Handles.Label(vd.pos, index.ToString());
+            }
+#pragma warning restore 162
 #endif
         }
 
