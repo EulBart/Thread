@@ -27,13 +27,13 @@ namespace Guylileo
 
         Plane[] plane;
         PlaneSphereIntersection psi;
-
+        Transform camPos;
         public FrustumSphereMeshBuilder(Vector3 center, float radius, Camera cam, int triangleRatio)
         {
             this.center = center;
             this.radius = radius;
             triangles = new List<TriangleData>();
-            
+            camPos = cam.transform;
 
             Vector3[] corners = new Vector3[5];
             cam.CalculateFrustumCorners(cam.rect,
@@ -130,6 +130,10 @@ namespace Guylileo
                 Debug.Log("Wow");
                 break;
             }
+            foreach (VerticeData data in first.vertices)
+            {
+                data.ToSphere(center, radius, plane, psi, camPos);
+            }
         }
 
         public IEnumerator GenerateCoroutine()
@@ -142,12 +146,14 @@ namespace Guylileo
             {
                 yield return clic;
             }
+            foreach (VerticeData data in first.vertices)
+            {
+                data.ToSphere(center, radius, plane, psi, camPos);
+            }
         }
 
         private bool OneStep(List<TriangleData> toDo)
         {
-            if (triangles.Count >= 1000)
-                return false;
             int index = toDo.Count - 1;
             TriangleData triangle = toDo[index];
             toDo.RemoveAt(index);
@@ -184,7 +190,7 @@ namespace Guylileo
 
         public class VerticeData
         {
-            public readonly Vector3 pos;
+            public Vector3 pos;
             public readonly List<TriangleData> triangles;
             public bool isVisible;
             public VerticeData(Vector3 pos, TriangleData triangle)
@@ -193,14 +199,65 @@ namespace Guylileo
                 triangles = new List<TriangleData>(){triangle};
             }
 
-            public static bool operator==(VerticeData data, Vector3 p)
+            public void ToSphere(Vector3 center, float radius, Plane[] plane, PlaneSphereIntersection psi, Transform camPos)
             {
-                return data.pos == p;
+                if(isVisible)
+                {
+                    // just project visible vertices on the sphere
+
+                    ProjectOnSphere(center, radius, plane[4].normal);
+                    return;
+                }
+                ProjectOnCircle(psi,plane);
+                //int projCount = 0;
+                //for(int i = 4; --i>=0;)
+                //{
+                //    if(plane[i].Distance(pos) < 0)
+                //    {
+                //        pos = plane[i].ProjectedPoint(pos);
+                //    }
+                //}
+
+                ProjectOnSphere(center, radius, camPos.position - pos);
+
             }
-            public static bool operator!=(VerticeData data, Vector3 p)
+
+            private void ProjectOnSphere(Vector3 center, float radius, Vector3 normal)
             {
-                return data.pos != p;
+                RaySphereIntersection rsi =
+                    new RaySphereIntersection(pos + 2 * radius * normal, -normal, center, radius);
+                if (rsi.type == RaySphereIntersection.eType.None)
+                {
+                    Debug.LogError("Something went wrong");
+                    return;
+                }
+                pos = rsi.I;
             }
+
+            private bool ProjectOnCircle(PlaneSphereIntersection psi, Plane[] plane)
+            {
+                pos = plane[4].ProjectedPoint(pos);
+                Vector3 v = pos - psi.onPlane;
+                float d2 = v.sqrMagnitude;
+                if (d2 > psi.circleRadius * psi.circleRadius)
+                {
+                    v /= Mathf.Sqrt(d2);
+                    v *= psi.circleRadius;
+                    pos = psi.onPlane + v;
+                    return true;
+                }
+                return false;
+            }
+
+
+          //  public static bool operator==(VerticeData data, Vector3 p)
+          //  {
+          //      return Vector3.Distance(data.pos, p) < 0.01f;
+          //  }
+          //  public static bool operator!=(VerticeData data, Vector3 p)
+          //  {
+          //      return !(data == p);
+          //  }
         }
 
         public class TriangleData
@@ -244,7 +301,9 @@ namespace Guylileo
             {
                 for(int index = 0; index<vertices.Count;++index)
                 {
-                    if(vertices[index].pos == value)
+                    //if(vertices[index].pos == value)
+                    Vector3 delta = vertices[index].pos - value;
+                    if(delta.sqrMagnitude < 0.0001f)
                     {
                         return index;
                     }
@@ -322,6 +381,8 @@ namespace Guylileo
                 }
             }
 
+
+
             public readonly int[] p = new int[3];
             private Dictionary<int, List<TriangleData>> verticeTriangles;
             private Vector3[] display = new Vector3[3];
@@ -355,7 +416,7 @@ namespace Guylileo
                 Vector3 d = p-psi.onPlane;
                 if(d.sqrMagnitude > psi.circleRadius*psi.circleRadius)
                     return false;
-                for(int i = planes.Length;--i>=0;)
+                for(int i = planes.Length-1;--i>=0;)
                 {
                     if(planes[i].Distance(p)<0)
                         return false;
@@ -371,34 +432,32 @@ namespace Guylileo
                 {
                     if(index>=0)
                     {
-                        string text = i.ToString();
+                        //string text = i.ToString();
                         if(neighbour[i]!=null)
                         {
-                            Handles.color = Color.cyan;
-                            Vector3 n = 0.5f*(com+neighbour[i].com);
-                            Handles.DrawDottedLine(com, n, 2);
-                            Handles.Label(0.5f*(n+com), text);
+                           // Handles.color = Color.cyan;
+                           // Vector3 n = 0.5f*(com+neighbour[i].com);
+                           // Handles.DrawDottedLine(com, n, 2);
+                           // Handles.Label(0.5f*(n+com), text);
                             Handles.color = Color.yellow;
                         }
                         else
                         {
                             Handles.color = Color.green;
                         }
-                        Handles.Label(display[i], text);
-                        Handles.DrawLine(display[i], display[(i+1)%3]);
+                        //Handles.Label(display[i], text);
+                        //Handles.DrawLine(display[i], display[(i+1)%3]);
                         //Handles.Label(com, index.ToString());
+                        Handles.DrawLine(this[i].pos, this[i+1].pos);
                     }
-                    else
-                    {
-                        Handles.color = neighbour[i] == null ? Color.magenta: Color.cyan;
-                        Handles.DrawDottedLine(display[i], display[(i+1)%3], 1);
-                        Handles.Label(com, name);
-                    }
-                    
+                  //  else
+                  //  {
+                  //      Handles.color = neighbour[i] == null ? Color.magenta: Color.cyan;
+                  //      Handles.DrawDottedLine(display[i], display[(i+1)%3], 1);
+                  //      Handles.Label(com, name);
+                  //  }
 
                     //Handles.Label((display[i] + com)*0.5f, p[i].ToString());
-                    
-
   //                  middle += this[i].pos;
                 }
     /*            middle/=3;

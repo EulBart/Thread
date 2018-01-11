@@ -82,6 +82,7 @@ public class Observer : MonoBehaviour
             if(longitudeSlider)
                 longitudeSlider.value = longitude;
         }
+
         SetPos();
 
     }
@@ -185,6 +186,12 @@ public class Observer : MonoBehaviour
 
     private void SetPos()
     {
+        if(!showHandles)
+        {
+            return;
+        }
+
+
         float mainNearClipPlane = main.farClipPlane/65536;
         main.nearClipPlane = mainNearClipPlane;
         parent = transform.parent;
@@ -199,10 +206,6 @@ public class Observer : MonoBehaviour
         up = new Vector3(cosl * cosL, sinl, cosl * sinL);
         transform.localPosition = (mesh.radius + 2*mainNearClipPlane + altitude/1000f) * up;
         
-        if(!showHandles)
-        {
-            return;
-        }
 
         north = new Vector3(-cosL * sinl, cosl, -sinl * sinL);
         east = new Vector3(-sinL*cosl, 0,cosl*cosL);
