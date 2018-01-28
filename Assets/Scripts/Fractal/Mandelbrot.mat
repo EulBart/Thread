@@ -63,6 +63,8 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
+    - _MaxDistance: 2
+    - _MaxIterations: 3.3
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
@@ -76,5 +78,6 @@ Material:
     - _Area: {r: -0.95, g: 0.57, b: 1, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _Position: {r: -0.18036285, g: -0.7887132, b: 1, a: 0.9493414}
-    - _Rotation: {r: -0.39835525, g: -0.9172312, b: 0, a: 0}
+    - _Mouse: {r: -1.117854, g: 0.41133004, b: 0, a: 0}
+    - _Position: {r: -1.6967133, g: 0.083618015, b: 1.4122965, a: 1}
+    - _Rotation: {r: 0.750867, g: 0.66045344, b: -2.2299407, a: -1.2076284}

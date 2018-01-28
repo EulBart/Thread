@@ -3,23 +3,16 @@
 	Properties
 	{
 		_MainTex ("Texture", 2D) = "white" {}
-		_Position("Position", vector) = (0,0, 1, 1) // x,y,zoom 
-		_Rotation("Rotation", vector) = (1,0,0,0) // cos, sin
+		_MaxDistance("Max Distance", float) = 2
 	}
 	SubShader
 	{
-		// No culling or depth
 		Cull Off ZWrite Off ZTest Always
-
 		Pass
 		{
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			#pragma multi_compile_instancing
-			#pragma instancing_options procedural:Setup
-
-			
 			#include "UnityCG.cginc"
 
 			struct appdata
@@ -43,35 +36,29 @@
 			}
 			
 			sampler2D _MainTex;
-			float4 _Position;
-			float4 _Rotation;
 			uniform float4 _MainTex_TexelSize;
-
-			float2 Rotate(float2 v)
-			{
-				return float2(v.x * _Rotation.x - v.y * _Rotation.y, v.x * _Rotation.y + v.y * _Rotation.x);
-			}
+			float4x4 _rTW;
+			float _MaxDistance;
 		
 			float2 Pos(float2 uv)
 			{
-				return (_Position.xy + Rotate(uv - 0.5) * _Position.zw);
+				return mul(_rTW, float4(uv,0,1)).xy;
 			}
 
 			fixed4 frag (v2f i) : SV_Target
 			{
 				float count;
 				float2 z = 0;
+
 				float2 c = Pos(i.uv);
-				
 				for(count = 0; count < _MainTex_TexelSize.z; ++count)
 				{
 					z = float2(z.x*z.x-z.y*z.y, 2*z.x*z.y) + c;
-					if(length(z)>2)
+					if(length(z)>_MaxDistance)
 						break;
 				}
 				count *= _MainTex_TexelSize.x;
-				fixed4 col = count;// tex2D (_MainTex, float2(count,0.5));
-				return col;
+				return tex2D (_MainTex, float2(count, 0.5));
 			}
 			ENDCG
 		}

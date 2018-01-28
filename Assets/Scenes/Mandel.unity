@@ -281,7 +281,7 @@ GameObject:
   - component: {fileID: 2056570202}
   - component: {fileID: 2056570204}
   m_Layer: 5
-  m_Name: RawImage
+  m_Name: Mandelbrot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -324,7 +324,7 @@ MonoBehaviour:
       m_Calls: []
     m_TypeName: UnityEngine.UI.MaskableGraphic+CullStateChangedEvent, UnityEngine.UI,
       Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
-  m_Texture: {fileID: 2800000, guid: 4f98e9c96c8a48541b5eb704e92d99b8, type: 3}
+  m_Texture: {fileID: 2800000, guid: aa56bc39d09693647aa8be24d8042c3b, type: 3}
   m_UVRect:
     serializedVersion: 2
     x: 0
@@ -349,6 +349,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   material: {fileID: 2100000, guid: 511407a395dc4ec4fa2bcf5585fb2a83, type: 2}
-  position: {x: 0, y: 0}
-  zoom: 1
-  angle: 37.73
+  position: {x: -2.18, y: -0.99}
+  zoom: 2.01
+  angle: 0
