@@ -10,7 +10,10 @@
 Shader "Custom/Test" {
     Properties {
         _MainTex ("Base (RGB)", 2D) = "white" {}
+		_Displacement ("Base (RGB)", 2D) = "white" {}
 		_Shininess ("Shininess", Float) = 0.078125
+		_displacementFactor("Factor", Float) = 0.5
+		_speed("Speed", Float) = 1
     }
     SubShader {
         Tags { "RenderType"="Opaque" }
@@ -37,14 +40,24 @@ CGPROGRAM
         }
 
         sampler2D _MainTex;
+		sampler2D _Displacement;
+		float _displacementFactor;
+		float _speed;
 
         struct Input {
             float2 uv_MainTex;
         };
 
         void surf (Input IN, inout SurfaceOutput o) {
-            half4 c = tex2D (_MainTex, IN.uv_MainTex);
-            o.Albedo = c.rgb;
+			float2 uv = IN.uv_MainTex;
+			half4 d = tex2D(_Displacement, uv);
+			half4 n = tex2D (_MainTex, uv);
+			float s = 0.5 * (sin(_Time.y * _speed)+1);
+			uv.x += (d.x - 0.5) * _displacementFactor * s;
+			uv.y += (d.y - 0.5) * _displacementFactor * s;
+            half4 c = tex2D (_MainTex, uv);
+
+            o.Albedo = c.rgb;//lerp(n.rgb, c.rgb, s);
             o.Alpha = c.a;
         }
         struct v2f_surf {
@@ -147,10 +160,11 @@ fixed4 frag_surf (v2f_surf IN) : SV_Target
     #endif
     UNITY_APPLY_FOG(IN.fogCoord, c);
     UNITY_OPAQUE_ALPHA(c.a);
-	float f = c.r * 0.3 + c.g * 0.59 + c.b * 0.11;
-	float2 pos = IN.pack0.xy + float2(sin(_Time.y), cos(_Time.y));
-	return (f ) < rand_1_05(pos)
-	  ?	0 : _Shininess;
+//	float f = c.r * 0.3 + c.g * 0.59 + c.b * 0.11;
+//	float2 pos = IN.pack0.xy + float2(sin(_Time.y), cos(_Time.y));
+//	return (f ) < rand_1_05(pos)
+//	  ?	f : _Shininess;
+	return c;
 }
 
 ENDCG
