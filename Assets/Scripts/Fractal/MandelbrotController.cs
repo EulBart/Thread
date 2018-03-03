@@ -1,11 +1,16 @@
-﻿
+﻿//#define SHOWMOUSE
+
+
 using UnityEngine;
 
 namespace Fractal
 {
     public class MandelbrotController : MonoBehaviour
     {
-        private int mouseKey, matrixKey ;
+        private int  matrixKey ;
+#if SHOWMOUSE
+        int mouseKey;
+#endif
 
         [SerializeField] private Material material;
         [SerializeField] private Vector2 position;
@@ -26,7 +31,9 @@ namespace Fractal
 
         void OnEnable()
         {
+#if SHOWMOUSE
             mouseKey = Shader.PropertyToID("_Mouse"); 
+#endif
             matrixKey = Shader.PropertyToID("_rTW"); 
             SetupMatrix();
         }
@@ -119,9 +126,11 @@ namespace Fractal
                 SetupMatrix();
             }
 
-            
-            
-            //material.SetVector(mouseKey, new Vector4(mousePosition.x/Screen.width, mousePosition.y/Screen.height));
+
+
+#if SHOWMOUSE
+            material.SetVector(mouseKey, new Vector4(mousePosition.x/Screen.width, mousePosition.y/Screen.height));
+#endif
             material.SetMatrix(matrixKey, rasterToWorld);
         }
     }
