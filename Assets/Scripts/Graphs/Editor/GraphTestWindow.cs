@@ -20,6 +20,24 @@ public class GraphTestWindow : EditorWindow
     private InitialLayout layout;
     private GeometryGraph graph;
 
+
+    private static EdgeRoutingMode mode = EdgeRoutingMode.SugiyamaSplines;
+
+    private Matrix4x4 graphToScreen;
+    private Matrix4x4 screenToGraph;
+    private Vector3 positionInGraph;
+    private float zoom = 1;
+    GUIStyle labelStyle;   
+    private Vector3 graphMousePos;
+    private Vector3 downGraphPosition;
+    private Vector2 downScreenPosition;
+    private Vector3 deltaScreen;
+    private Vector3 deltaGraph;
+    private int windowId;
+    private Rect windowPosition = new Rect(100,100,400,100);
+
+    #region GRAPH CREATION
+
     public static void AddNode(string id, GeometryGraph graph, double w, double h)
     {
         graph.Nodes.Add(new Node(CreateCurve(w, h), id));
@@ -27,8 +45,9 @@ public class GraphTestWindow : EditorWindow
 
     public static ICurve CreateCurve(double w, double h)
     {
-        return CurveFactory.CreateRectangle(w, h, new Point());
+        //return CurveFactory.CreateRectangle(w, h, new Point());
         //return CurveFactory.CreateEllipse(w/2,h/2, new Point());
+        return CurveFactory.CreateRectangleWithRoundedCorners(w,h,10,10, new Point());
     }
 
     internal void CreateGraph()
@@ -75,94 +94,160 @@ public class GraphTestWindow : EditorWindow
         var settings = new SugiyamaLayoutSettings
         {
             Transformation = PlaneTransformation.Rotation(Math.PI / 2),
-            EdgeRoutingSettings = {EdgeRoutingMode = mode},
+            EdgeRoutingSettings = { EdgeRoutingMode = mode },
         };
         var layout = new LayeredLayout(graph, settings);
         layout.Run();
     }
+    
 
-    private static EdgeRoutingMode mode = EdgeRoutingMode.SugiyamaSplines;
+    #endregion
+
 
     private void OnEnable()
     {
+        windowId = GetInstanceID();
         CreateGraph();
         RunLayout();
     }
-
-
     private void OnGUI()
     {
-        SettingsUI();
+
+        Event current = Event.current;
+        if (current == null)
+            return;
+        if(!windowPosition.Contains(current.mousePosition))
+        {
+            ManageMouse(current);
+            ManageScreenSize(current);
+        }
         DrawGraph();
+        Handles.matrix = Matrix4x4.identity;
+        SettingsUI();
     }
 
+    private void SetMatrices()
+    {
+        screenToGraph.SetTRS(positionInGraph, Quaternion.identity, new Vector3(zoom, -zoom, zoom));
+        graphToScreen = screenToGraph.inverse;
+    }
+
+    private void ManageScreenSize(Event evt)
+    {
+
+    }
+    private void ManageMouse(Event evt)
+    {
+        graphMousePos = screenToGraph.MultiplyPoint3x4(evt.mousePosition);
+        if (evt.isScrollWheel)
+        {
+            if (evt.delta.y > 0)
+            {
+                zoom *= 1.1f;
+            }
+            else
+            {
+                zoom /= 1.1f;
+            }
+
+            SetMatrices();
+            positionInGraph += graphMousePos - screenToGraph.MultiplyPoint3x4(evt.mousePosition) ;
+            SetMatrices();
+            Repaint();
+            return;
+        }
+        
+        if (evt.button != 0)
+            return;
+        if (evt.type == EventType.MouseDown)
+        {
+            downGraphPosition = positionInGraph;
+            downScreenPosition = evt.mousePosition;
+        }
+        else if (evt.type == EventType.MouseDrag)
+        {
+            deltaScreen = evt.mousePosition - downScreenPosition;
+            deltaGraph = screenToGraph.MultiplyVector(deltaScreen);
+            positionInGraph = downGraphPosition - deltaGraph;
+            Repaint();
+        }
+
+    }
+    
     private void SettingsUI()
     {
-        Rect r = new Rect(0, 0, 60, 20);
-        if (EditorGUI.DropdownButton(r, new GUIContent(mode.ToString()), FocusType.Passive))
+        BeginWindows();
+        windowPosition = GUI.Window(windowId, windowPosition, id =>
         {
-            GenericMenu menu = new GenericMenu();
-            foreach (EdgeRoutingMode value in Enum.GetValues(typeof(EdgeRoutingMode)))
+            if(id != windowId)
+                return;
+            GUIContent guiContent = new GUIContent(mode.ToString());
+            GUILayout.BeginHorizontal();
+            if (EditorGUILayout.DropdownButton(guiContent, FocusType.Passive))
             {
-                menu.AddItem(new GUIContent(value.ToString()), value == mode, () =>
+                Rect r = GUILayoutUtility.GetLastRect();
+                GenericMenu menu = new GenericMenu();
+                foreach (EdgeRoutingMode value in Enum.GetValues(typeof(EdgeRoutingMode)))
                 {
-                    mode = value;
-                    RunLayout();
-                });
+                    menu.AddItem(new GUIContent(value.ToString()), value == mode, () =>
+                    {
+                        mode = value;
+                        RunLayout();
+                    });
+                }
+                menu.DropDown(r);
             }
-            menu.DropDown(r);
-        }
+            if (GUILayout.Button("RESET"))
+            {
+                ResetPosition();
+            }
+            GUILayout.EndHorizontal();
+            GUI.DragWindow();
+        }, "Settings");
+        EndWindows();
     }
 
-    Vector3 offset;
+    private void ResetPosition()
+    {
+        positionInGraph = graph.BoundingBox.LeftTop.V3();
+        zoom = 1;
+        SetMatrices();
+    }
+
     private void DrawGraph()
     {
-        if(Event.current.type != EventType.Repaint)
+        if (Event.current.type != EventType.Repaint)
             return;
-
-        Point top = graph.BoundingBox.LeftTop;
-        offset = new Vector2(-(float)top.X, (float)top.Y);
+        SetMatrices();
+        Handles.matrix = graphToScreen;
         Handles.color = Color.black;
         foreach (Node node in graph.Nodes)
         {
             DrawNode(node);
         }
-        
+
         foreach (Edge edge in graph.Edges)
         {
             DrawEdge(edge);
         }
     }
-
     private void DrawEdge(Edge edge)
     {
         DrawCurve(edge.Curve);
     }
-
-    GUIStyle labelStyle;
-
-
     private void DrawNode(Node node)
     {
         DrawCurve(node.BoundaryCurve);
         var bb = node.BoundingBox;
-        Rect r = new Rect(
-            new Vector2(0, 0),
-            new Vector2((float)bb.Width, (float)bb.Height));
-        r.center = node.Center.V3() + offset;
 
-        labelStyle = labelStyle ?? new GUIStyle(GUI.skin.label)
-        {
-            fontSize = (int)(bb.Height * 0.5),
-            alignment = TextAnchor.MiddleCenter
-        };
+        float bbHeight = (float)bb.Height;
+        Vector3 h = graphToScreen.MultiplyVector(new Vector3(0,bbHeight,0));
+        int fontSize = (int)Mathf.Abs(h.y * 0.8f);
+        labelStyle = labelStyle ?? new GUIStyle(GUI.skin.label);
+        labelStyle.fontSize = fontSize;
+        Handles.Label(node.Center.V3() + 0.5f * new Vector3(-0.5f*bbHeight, bbHeight), node.UserData.ToString(), labelStyle);
 
-
-        GUI.Label(r, node.UserData.ToString(), labelStyle);
     }
-    const int nPoints = 64;
-    Vector3[] line = new Vector3[nPoints];
-
     private void DrawCurve(ICurve curve)
     {
         if (curve == null)
@@ -202,25 +287,25 @@ public class GraphTestWindow : EditorWindow
             }
         }
     }
-
     private void DrawGenericCurve(ICurve curve)
     {
+        Vector3 delta = graphToScreen.MultiplyVector(new Vector3((float)curve.Length,0,0));
+        int nPoints = 1 + (int) (Mathf.Abs(delta.x)/10f);
+        Vector3[] line = new Vector3[nPoints];
         for (int i = 0; i < nPoints; ++i)
         {
             double t = Mathf.Lerp((float)curve.ParStart, (float)curve.ParEnd, (float)i / (nPoints - 1));
-            line[i] = curve[t].V3() + offset;
+            line[i] = curve[t].V3();
         }
         Handles.DrawPolyLine(line);
     }
-
     private void DrawBezier(CubicBezierSegment cubic)
     {
         DrawGenericCurve(cubic);
     }
-
     private void DrawLineSegment(LineSegment ls)
     {
-        Handles.DrawLine(ls.Start.V3() + offset, ls.End.V3() + offset);
+        Handles.DrawLine(ls.Start.V3(), ls.End.V3());
     }
 }
 
