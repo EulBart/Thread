@@ -1,4 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Linq;
+using System.Reflection;
+using System.Text;
 using UnityEngine;
 using Microsoft.Msagl.Core.Geometry;
 using Microsoft.Msagl.Core.Geometry.Curves;
@@ -6,6 +11,7 @@ using Microsoft.Msagl.Core.Layout;
 using Microsoft.Msagl.Core.Routing;
 using Microsoft.Msagl.Layout.Initial;
 using Microsoft.Msagl.Layout.Layered;
+using OSG;
 using UnityEditor;
 
 
@@ -17,24 +23,27 @@ public class GraphTestWindow : EditorWindow
         var editorWindow = EditorWindow.GetWindow<GraphTestWindow>();
         editorWindow.Show();
     }
-    private InitialLayout layout;
+
     private GeometryGraph graph;
 
 
-    private static EdgeRoutingMode mode = EdgeRoutingMode.SugiyamaSplines;
+    private static EdgeRoutingMode mode = EdgeRoutingMode.Rectilinear;
 
     private Matrix4x4 graphToScreen;
     private Matrix4x4 screenToGraph;
     private Vector3 positionInGraph;
     private float zoom = 1;
-    GUIStyle labelStyle;   
+    GUIStyle labelStyle;
     private Vector3 graphMousePos;
     private Vector3 downGraphPosition;
     private Vector2 downScreenPosition;
     private Vector3 deltaScreen;
     private Vector3 deltaGraph;
     private int windowId;
-    private Rect windowPosition = new Rect(100,100,400,100);
+    private Rect windowPosition = new Rect(100, 100, 600, 400);
+    private Vector2 reducedWindowSize = new Vector2(400,50);
+    private Vector2 openedWindowSize = new Vector2(600,400);
+    private SugiyamaLayoutSettings settings;
 
     #region GRAPH CREATION
 
@@ -47,7 +56,7 @@ public class GraphTestWindow : EditorWindow
     {
         //return CurveFactory.CreateRectangle(w, h, new Point());
         //return CurveFactory.CreateEllipse(w/2,h/2, new Point());
-        return CurveFactory.CreateRectangleWithRoundedCorners(w,h,10,10, new Point());
+        return CurveFactory.CreateRectangleWithRoundedCorners(w, h, 10, 10, new Point());
     }
 
     internal void CreateGraph()
@@ -89,17 +98,141 @@ public class GraphTestWindow : EditorWindow
         graph.Edges.Add(edge);
     }
 
+
+
+    /// <summary>
+    /// this FuckingShit of dictionnary doesn't find Singleton<T> as parent of AutoSingleton<T>
+    /// so we have to use the name string to find out
+    /// </summary>
+    class FuckingShit
+    {
+        public readonly Type type;
+        public readonly string name;
+        public FuckingShit(Type type)
+        {
+            name = GetTypeName(type);
+            this.type = type;
+        }
+        public override string ToString()
+        {
+            return name;
+        }
+    }
+    internal void CreateClassGraph()
+    {
+        graph = new GeometryGraph();
+
+        var typeNodes = new Dictionary<string, Node>();
+
+
+        GUIContent content = new GUIContent();
+
+        ProcessTypeDelegate processType = type =>
+        {
+            string typeNamespace = type.Namespace;
+            //if (!string.IsNullOrEmpty(typeNamespace))
+            //{
+            //    if (typeNamespace.StartsWith("Unity")
+            //    || typeNamespace.StartsWith("TMPro")
+            //       || typeNamespace.StartsWith("TMPro")
+            //    )
+            //        return;
+            //}
+
+            char start = type.Name[0];
+            if (start == '<' || start == '$')
+                return;
+
+            //if(!type.Name.Contains("Singleton"))
+            //    return;
+
+            FuckingShit shit = new FuckingShit(type);
+
+            content.text = shit.name;
+            Vector2 size = GUI.skin.label.CalcSize(content);
+            double w = size.x * 2.5;
+            double h = size.y + 20;
+            var node = new Node(CurveFactory.CreateRectangle(w, h, new Point())) { UserData = shit };
+            graph.Nodes.Add(node);
+
+            Node fuckingPieceOfMotherFuckerCrap;
+            if (typeNodes.TryGetValue(content.text, out fuckingPieceOfMotherFuckerCrap))
+            {
+                Debug.Log("fuckingPieceOfMotherFuckerCrap " + fuckingPieceOfMotherFuckerCrap);
+            }
+            else
+            {
+                typeNodes.Add(content.text, node);
+            }
+        };
+
+        AssemblyScanner.Register(processType, AssemblyScanner.OnlyProject);
+        AssemblyScanner.Scan();
+
+        foreach (var kvp in typeNodes)
+        {
+            Node node = kvp.Value;
+            Type baseType = (node.UserData as FuckingShit).type.BaseType;
+            if (baseType == null)
+                continue;
+
+            string baseTypeName = GetTypeName(baseType);
+
+            Node parentNode;
+            if (typeNodes.TryGetValue(baseTypeName, out parentNode))
+            {
+                graph.Edges.Add(new Edge(node, parentNode));
+            }
+        }
+
+        for(int i = graph.Nodes.Count;--i>=0;)
+        {
+            if(graph.Nodes[i].Edges.Any())
+                continue;
+            graph.Nodes.RemoveAt(i);
+        }
+    }
+
+
+
+    private static string GetTypeName(Type type)
+    {
+        if (!type.IsGenericType)
+            return type.Name;
+        var par = type.GetGenericArguments();
+        int indexOf = type.Name.IndexOf('`');
+        StringBuilder b = new StringBuilder();
+        b.Clear();
+        b.Append(indexOf >= 0 ? type.Name.Substring(0, indexOf) : type.Name);
+
+        for (int i = 0; i < par.Length; ++i)
+        {
+            b.AppendFormat("{0}{1}", i == 0 ? "<" : ", ", GetTypeName(par[i]));
+        }
+        b.Append('>');
+        return b.ToString();
+    }
+
     private void RunLayout()
     {
-        var settings = new SugiyamaLayoutSettings
+        settings = settings??new SugiyamaLayoutSettings
         {
             Transformation = PlaneTransformation.Rotation(Math.PI / 2),
-            EdgeRoutingSettings = { EdgeRoutingMode = mode },
+            PackingMethod = PackingMethod.Columns,
+            EdgeRoutingSettings =
+            {
+                Padding = 100,
+                
+            },
+            GroupSplit = 10,
+            
         };
+        
+        settings.EdgeRoutingSettings.EdgeRoutingMode = mode;
         var layout = new LayeredLayout(graph, settings);
         layout.Run();
     }
-    
+
 
     #endregion
 
@@ -107,19 +240,29 @@ public class GraphTestWindow : EditorWindow
     private void OnEnable()
     {
         windowId = GetInstanceID();
-        CreateGraph();
-        RunLayout();
+        graph = null;
+
     }
     private void OnGUI()
     {
+        if (graph == null)
+        {
+            CreateClassGraph();
+            RunLayout();
+        }
 
         Event current = Event.current;
         if (current == null)
             return;
-        if(!windowPosition.Contains(current.mousePosition))
+        if (!windowPosition.Contains(current.mousePosition))
         {
             ManageMouse(current);
             ManageScreenSize(current);
+            windowPosition.size = reducedWindowSize;
+        }
+        else
+        {
+            windowPosition.size = openedWindowSize;
         }
         DrawGraph();
         Handles.matrix = Matrix4x4.identity;
@@ -150,13 +293,15 @@ public class GraphTestWindow : EditorWindow
                 zoom /= 1.1f;
             }
 
+            zoom = Mathf.Clamp(zoom, 0.2f, 50f);
+
             SetMatrices();
-            positionInGraph += graphMousePos - screenToGraph.MultiplyPoint3x4(evt.mousePosition) ;
+            positionInGraph += graphMousePos - screenToGraph.MultiplyPoint3x4(evt.mousePosition);
             SetMatrices();
             Repaint();
             return;
         }
-        
+
         if (evt.button != 0)
             return;
         if (evt.type == EventType.MouseDown)
@@ -173,14 +318,19 @@ public class GraphTestWindow : EditorWindow
         }
 
     }
+    private PropertyInfo[] infos;
+    private Vector2 scrollPos;
     
+
     private void SettingsUI()
     {
         BeginWindows();
         windowPosition = GUI.Window(windowId, windowPosition, id =>
         {
-            if(id != windowId)
+            if (id != windowId)
                 return;
+            scrollPos = GUILayout.BeginScrollView(scrollPos, GUILayout.Width(windowPosition.width-8));
+
             GUIContent guiContent = new GUIContent(mode.ToString());
             GUILayout.BeginHorizontal();
             if (EditorGUILayout.DropdownButton(guiContent, FocusType.Passive))
@@ -197,21 +347,57 @@ public class GraphTestWindow : EditorWindow
                 }
                 menu.DropDown(r);
             }
-            if (GUILayout.Button("RESET"))
+            if (GUILayout.Button("CENTER"))
             {
                 ResetPosition();
             }
             GUILayout.EndHorizontal();
             GUI.DragWindow();
+
+            infos = infos??GetInfos(typeof(SugiyamaLayoutSettings));
+
+            foreach (MemberInfo info in infos)
+            {
+                string name  = info.Name;
+                object value = info.GetValue(settings);
+                if(value != null)
+                {
+                    name += " " + value;
+                }
+
+                IEnumerable<Attribute> att = info.GetCustomAttributes(typeof(DescriptionAttribute));
+                if(att.Any())
+                {
+                    DescriptionAttribute desc = att.First() as DescriptionAttribute;
+                    if(desc!=null)
+                    {
+                        name += " (" + desc.Description + ")";
+                    }
+                }
+                GUILayout.Label(name);
+            }
+            GUILayout.EndScrollView();
+            
+
         }, "Settings");
         EndWindows();
     }
 
+    private PropertyInfo[] GetInfos(Type type)
+    {
+        return type.GetProperties(BindingFlags.Public|BindingFlags.Instance);
+    }
+
     private void ResetPosition()
     {
-        positionInGraph = graph.BoundingBox.LeftTop.V3();
-        zoom = 1;
+        Vector3 screenCenter = new Vector3(Screen.width/2, Screen.height/2);
+
+        Vector3 screenCenterInGraph = screenToGraph.MultiplyPoint3x4(screenCenter);
+        Vector3 graphCenter = graph.BoundingBox.Center.V3();
+        positionInGraph += graphCenter - screenCenterInGraph;
         SetMatrices();
+     //   zoom = 1;
+     //   SetMatrices();
     }
 
     private void DrawGraph()
@@ -241,11 +427,22 @@ public class GraphTestWindow : EditorWindow
         var bb = node.BoundingBox;
 
         float bbHeight = (float)bb.Height;
-        Vector3 h = graphToScreen.MultiplyVector(new Vector3(0,bbHeight,0));
+        Vector3 h = graphToScreen.MultiplyVector(new Vector3(0, bbHeight, 0));
         int fontSize = (int)Mathf.Abs(h.y * 0.8f);
         labelStyle = labelStyle ?? new GUIStyle(GUI.skin.label);
+        if(fontSize==0)
+            return;
+
+        if(fontSize>300)
+            fontSize = 300;
+
         labelStyle.fontSize = fontSize;
-        Handles.Label(node.Center.V3() + 0.5f * new Vector3(-0.5f*bbHeight, bbHeight), node.UserData.ToString(), labelStyle);
+
+        Vector3 left = 0.5f * (node.BoundingBox.LeftBottom.V3() + node.BoundingBox.LeftTop.V3());
+        var pos = left + 0.5f * new Vector3(0, bbHeight);
+
+
+        Handles.Label(pos, node.UserData.ToString(), labelStyle);
 
     }
     private void DrawCurve(ICurve curve)
@@ -289,8 +486,8 @@ public class GraphTestWindow : EditorWindow
     }
     private void DrawGenericCurve(ICurve curve)
     {
-        Vector3 delta = graphToScreen.MultiplyVector(new Vector3((float)curve.Length,0,0));
-        int nPoints = 1 + (int) (Mathf.Abs(delta.x)/10f);
+        Vector3 delta = graphToScreen.MultiplyVector(new Vector3((float)curve.Length, 0, 0));
+        int nPoints = 1 + (int)(Mathf.Abs(delta.x) / 10f);
         Vector3[] line = new Vector3[nPoints];
         for (int i = 0; i < nPoints; ++i)
         {
