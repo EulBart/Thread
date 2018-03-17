@@ -33,7 +33,6 @@ public class GraphTestWindow : EditorWindow
     private Matrix4x4 screenToGraph;
     private Vector3 positionInGraph;
     private float zoom = 1;
-    GUIStyle labelStyle;
     private Vector3 graphMousePos;
     private Vector3 downGraphPosition;
     private Vector2 downScreenPosition;
@@ -104,20 +103,30 @@ public class GraphTestWindow : EditorWindow
     /// this FuckingShit of dictionnary doesn't find Singleton<T> as parent of AutoSingleton<T>
     /// so we have to use the name string to find out
     /// </summary>
-    class FuckingShit
+    class NodeInfo
     {
+        public static GUIStyle style;
+        public static int baseFontSize = 20;
+        public readonly Vector2 baseSize;
+        public readonly GUIContent content;
         public readonly Type type;
-        public readonly string name;
-        public FuckingShit(Type type)
+        public NodeInfo(Type type)
         {
-            name = GetTypeName(type);
+            style = style??new GUIStyle(GUI.skin.label)
+            {
+                fontSize = baseFontSize
+            };
             this.type = type;
+            content = new GUIContent(GetTypeName(type));
+            baseSize = style.CalcSize(content);
         }
         public override string ToString()
         {
-            return name;
+            return content.text;
         }
     }
+
+
     internal void CreateClassGraph()
     {
         graph = new GeometryGraph();
@@ -125,11 +134,9 @@ public class GraphTestWindow : EditorWindow
         var typeNodes = new Dictionary<string, Node>();
 
 
-        GUIContent content = new GUIContent();
-
         ProcessTypeDelegate processType = type =>
         {
-            string typeNamespace = type.Namespace;
+            //string typeNamespace = type.Namespace;
             //if (!string.IsNullOrEmpty(typeNamespace))
             //{
             //    if (typeNamespace.StartsWith("Unity")
@@ -146,23 +153,19 @@ public class GraphTestWindow : EditorWindow
             //if(!type.Name.Contains("Singleton"))
             //    return;
 
-            FuckingShit shit = new FuckingShit(type);
+            NodeInfo info = new NodeInfo(type);
 
-            content.text = shit.name;
-            Vector2 size = GUI.skin.label.CalcSize(content);
-            double w = size.x * 2.5;
-            double h = size.y + 20;
-            var node = new Node(CurveFactory.CreateRectangle(w, h, new Point())) { UserData = shit };
+            var node = new Node(CurveFactory.CreateRectangle(info.baseSize.x, 
+                                                             info.baseSize.y, new Point()))
+            {
+                UserData = info
+            };
             graph.Nodes.Add(node);
 
-            Node fuckingPieceOfMotherFuckerCrap;
-            if (typeNodes.TryGetValue(content.text, out fuckingPieceOfMotherFuckerCrap))
+            Node doublonByNameToBeFixedOneDayIWillGiveAFuck;
+            if (!typeNodes.TryGetValue(info.ToString(), out doublonByNameToBeFixedOneDayIWillGiveAFuck))
             {
-                Debug.Log("fuckingPieceOfMotherFuckerCrap " + fuckingPieceOfMotherFuckerCrap);
-            }
-            else
-            {
-                typeNodes.Add(content.text, node);
+                typeNodes.Add(info.ToString(), node);
             }
         };
 
@@ -172,7 +175,7 @@ public class GraphTestWindow : EditorWindow
         foreach (var kvp in typeNodes)
         {
             Node node = kvp.Value;
-            Type baseType = (node.UserData as FuckingShit).type.BaseType;
+            Type baseType = (node.UserData as NodeInfo).type.BaseType;
             if (baseType == null)
                 continue;
 
@@ -217,7 +220,7 @@ public class GraphTestWindow : EditorWindow
     {
         settings = settings??new SugiyamaLayoutSettings
         {
-            Transformation = PlaneTransformation.Rotation(Math.PI / 2),
+            Transformation = PlaneTransformation.Rotation(0*Math.PI / 2),
             PackingMethod = PackingMethod.Columns,
             EdgeRoutingSettings =
             {
@@ -391,13 +394,12 @@ public class GraphTestWindow : EditorWindow
     private void ResetPosition()
     {
         Vector3 screenCenter = new Vector3(Screen.width/2, Screen.height/2);
-
+        zoom = 1;
+        SetMatrices();
         Vector3 screenCenterInGraph = screenToGraph.MultiplyPoint3x4(screenCenter);
         Vector3 graphCenter = graph.BoundingBox.Center.V3();
         positionInGraph += graphCenter - screenCenterInGraph;
         SetMatrices();
-     //   zoom = 1;
-     //   SetMatrices();
     }
 
     private void DrawGraph()
@@ -426,24 +428,28 @@ public class GraphTestWindow : EditorWindow
         DrawCurve(node.BoundaryCurve);
         var bb = node.BoundingBox;
 
-        float bbHeight = (float)bb.Height;
-        Vector3 h = graphToScreen.MultiplyVector(new Vector3(0, bbHeight, 0));
-        int fontSize = (int)Mathf.Abs(h.y * 0.8f);
-        labelStyle = labelStyle ?? new GUIStyle(GUI.skin.label);
-        if(fontSize==0)
+        var delta = graphToScreen.MultiplyVector((bb.RightBottom - bb.LeftTop).V3());
+        delta.x = Mathf.Abs(delta.x);
+        delta.y = Mathf.Abs(delta.y);
+
+        NodeInfo info = node.UserData as NodeInfo;
+        if(info==null)
             return;
+
+        float ratio = delta.x / info.baseSize.x;
+        int fontSize = (int)(NodeInfo.baseFontSize * ratio);
 
         if(fontSize>300)
             fontSize = 300;
 
-        labelStyle.fontSize = fontSize;
+        if(fontSize<2)
+            return;
 
-        Vector3 left = 0.5f * (node.BoundingBox.LeftBottom.V3() + node.BoundingBox.LeftTop.V3());
-        var pos = left + 0.5f * new Vector3(0, bbHeight);
+        NodeInfo.style.fontSize = fontSize;
 
-
-        Handles.Label(pos, node.UserData.ToString(), labelStyle);
-
+        Vector3 left = 0.5f * (bb.LeftBottom.V3() + bb.LeftTop.V3());
+        var pos = left + 0.5f * new Vector3(0, (float)bb.Height);
+        Handles.Label(pos, node.UserData.ToString(), NodeInfo.style);
     }
     private void DrawCurve(ICurve curve)
     {
