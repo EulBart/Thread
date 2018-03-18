@@ -45,7 +45,6 @@ public class EntitiesManager : MonoBehaviour
     {
         yield return WaitForEndOfJob(new RandomizeJob(maxSize, positions));
         EntityRenderer r = GetComponent<EntityRenderer>();
-        float timer = 0;
         for(;;)
         {
             if(Input.GetMouseButton(1))

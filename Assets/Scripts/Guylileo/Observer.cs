@@ -116,10 +116,10 @@ public class Observer : MonoBehaviour
 
 	}
 
-    Color[] colors =
-    {
-        Color.red, Color.green, Color.blue, Color.yellow
-    };
+    //Color[] colors =
+    //{
+    //    Color.red, Color.green, Color.blue, Color.yellow
+    //};
 
 
     public bool showBackPlane;

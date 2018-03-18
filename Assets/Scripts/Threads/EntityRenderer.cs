@@ -10,7 +10,7 @@ public class EntityRenderer : MonoBehaviour
     private ComputeBuffer positionBuffer;
     private ComputeBuffer argsBuffer;
     private uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
-    private Bounds bounds;
+    private Bounds bounds = new Bounds(Vector3.zero, Vector3.one);
 
     void Start()
     {
